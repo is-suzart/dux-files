@@ -222,6 +222,7 @@ Item {
             if (response.error)
                 return;
             const result = response.result || {};
+            root.iconThemes = result.installed || [];
             Paths.applyIconTheme(result);
         });
     }
@@ -700,6 +701,13 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("View", "keyboard shortcut group")
+
+                SettingsToggleRow {
+                    text: I18n.tr("Always show tabs", "setting keeping the tab bar visible with one tab")
+                    description: I18n.tr("Show the tab bar even when only one tab is open.", "always show tabs setting description")
+                    checked: SettingsData.alwaysShowTabs
+                    onToggled: checked => SettingsData.alwaysShowTabs = checked
+                }
 
                 OptionGroupRow {
                     text: I18n.tr("Default view", "setting label for the view a new window starts in")

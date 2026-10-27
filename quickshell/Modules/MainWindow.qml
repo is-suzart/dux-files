@@ -355,6 +355,7 @@ FloatingWindow {
 
         property int paneIndex: 0
 
+        showPathBar: false
         active: window.activePaneIndex === paneIndex
         showHidden: window.showHidden
         previewOpen: window.previewOpen
@@ -496,7 +497,7 @@ FloatingWindow {
             anchors.right: parent.right
             anchors.topMargin: FilesMetrics.contentMarginV
             anchors.bottomMargin: FilesMetrics.contentMarginV
-            anchors.leftMargin: FilesMetrics.contentMarginH + sidebarHost.dockedWidth
+            anchors.leftMargin: FilesMetrics.contentMarginH
             anchors.rightMargin: FilesMetrics.contentMarginH
             enabled: !window.preview.open
 
@@ -506,12 +507,18 @@ FloatingWindow {
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
-                visible: window.tabManager.tabs.length > 1
+                visible: SettingsData.alwaysShowTabs || window.tabManager.tabs.length > 1
                 height: visible ? implicitHeight : 0
                 tabs: window.tabManager.tabs.map(state => window.tabManager.tabLabel(state))
                 currentIndex: window.tabManager.currentTab
                 onTabSelected: index => window.tabManager.selectTab(index)
-                onTabClosed: index => window.tabManager.closeTab(index)
+                onTabClosed: index => {
+                    if (window.tabManager.tabs.length === 1) {
+                        window.requestClose();
+                        return;
+                    }
+                    window.tabManager.closeTab(index);
+                }
                 onTabAdded: window.tabManager.newTab("", false)
                 onTabDropHovered: index => window.tabManager.selectTab(index)
                 onTabDropped: (index, drop) => window.tabManager.dropOnTab(index, drop)
@@ -548,6 +555,7 @@ FloatingWindow {
                     window.activePane.closeSearch();
                     window.activePane.focusBody();
                 }
+                onTabRequested: path => window.openPath(path, true)
                 onLocationRequested: location => {
                     window.openLocation(location, false);
                     window.activePane.focusBody();
@@ -585,6 +593,7 @@ FloatingWindow {
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
                 anchors.right: parent.right
+                anchors.leftMargin: sidebarHost.dockedWidth
 
                 readonly property real usableWidth: width - (window.splitView ? FilesMetrics.splitterWidth : 0)
 
@@ -634,7 +643,8 @@ FloatingWindow {
         WindowSidebarHost {
             id: sidebarHost
 
-            anchors.top: header.bottom
+            anchors.top: content.top
+            anchors.topMargin: topbar.y + topbar.height + FilesMetrics.contentSpacing
             anchors.bottom: parent.bottom
             anchors.left: parent.left
             anchors.right: parent.right
@@ -659,7 +669,7 @@ FloatingWindow {
 
             TapHandler {
                 acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                enabled: primaryPane.editingPath || (window.secondPane?.editingPath ?? false) || topbar.searchFocused
+                enabled: primaryPane.editingPath || (window.secondPane?.editingPath ?? false)
                 onPressedChanged: {
                     if (pressed)
                         window.dismissEditors(point.position);
