@@ -13,6 +13,7 @@ Item {
     property bool splitView: false
     property bool backEnabled: false
     property bool forwardEnabled: false
+    property bool upEnabled: false
     property bool compact: false
     property string viewMode: "list"
     property bool previewOpen: false
@@ -182,6 +183,7 @@ Item {
     signal sidebarToggled
     signal backRequested
     signal forwardRequested
+    signal upRequested
     signal splitToggled
     signal viewModeSelected(string mode)
     signal zoomRequested(int step)
@@ -280,19 +282,14 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: FilesMetrics.topbarGroupSpacing
 
-        FlatButton {
-            anchors.verticalCenter: parent.verticalCenter
-            iconName: "menu"
-            tooltipText: I18n.tr("Toggle sidebar", "tooltip on the button showing or hiding the sidebar")
-            onClicked: topbar.sidebarToggled()
-        }
-
-        NavButtonPair {
+        NavButtonGroup {
             anchors.verticalCenter: parent.verticalCenter
             backEnabled: topbar.backEnabled
             forwardEnabled: topbar.forwardEnabled
+            upEnabled: topbar.upEnabled
             onBackRequested: topbar.backRequested()
             onForwardRequested: topbar.forwardRequested()
+            onUpRequested: topbar.upRequested()
         }
     }
 
@@ -304,43 +301,18 @@ Item {
         spacing: FilesMetrics.topbarSpacing
 
         FlatButton {
-            id: viewButton
-
             anchors.verticalCenter: parent.verticalCenter
             visible: !topbar.compact
-            iconName: topbar.currentViewMode.icon
-            backgroundColor: Theme.chipSurface
-            tooltipText: I18n.tr("View", "keyboard shortcut group")
-            onClicked: menu.toggle(viewButton, "view")
+            iconName: "refresh"
+            tooltipText: I18n.tr("Reload", "menu entry re-reading the current folder")
+            onClicked: topbar.reloadRequested()
         }
 
-        FlatButton {
+        ViewButtonGroup {
             anchors.verticalCenter: parent.verticalCenter
             visible: !topbar.compact
-            iconName: "view_sidebar"
-            iconColor: topbar.previewOpen ? Theme.onPrimary : Theme.surfaceText
-            backgroundColor: topbar.previewOpen ? Theme.primary : Theme.chipSurface
-            tooltipText: topbar.previewLabel
-            onClicked: topbar.previewToggled()
-        }
-
-        FlatButton {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !topbar.compact && topbar.previewExpandable
-            iconName: "open_in_full"
-            backgroundColor: Theme.chipSurface
-            tooltipText: topbar.previewExpandLabel
-            onClicked: topbar.previewExpandRequested()
-        }
-
-        FlatButton {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !topbar.compact
-            iconName: "splitscreen_vertical_add"
-            iconColor: topbar.splitView ? Theme.onPrimary : Theme.surfaceText
-            backgroundColor: topbar.splitView ? Theme.primary : Theme.chipSurface
-            tooltipText: I18n.tr("Split view", "tooltip on the button showing a second pane")
-            onClicked: topbar.splitToggled()
+            viewMode: topbar.viewMode
+            onViewModeSelected: mode => topbar.viewModeSelected(mode)
         }
 
         FileSortButton {
@@ -350,7 +322,7 @@ Item {
             keys: topbar.activeSortKeys
             sortKey: topbar.sortKey
             descending: topbar.sortDescending
-            showLabel: !topbar.compact
+            showLabel: false
             onSortKeySelected: key => topbar.sortKeySelected(key)
             onDirectionToggled: topbar.sortDirectionToggled()
         }
@@ -360,7 +332,6 @@ Item {
 
             anchors.verticalCenter: parent.verticalCenter
             iconName: "more_vert"
-            backgroundColor: Theme.chipSurface
             tooltipText: I18n.tr("More actions", "tooltip on the overflow menu button")
             onClicked: menu.toggle(overflowButton, "more")
         }
@@ -527,59 +498,73 @@ Item {
         }
     }
 
+    readonly property bool searchExpanded: topbar.editing || topbar.searchFocused || topbar.filterText !== ""
+
     Rectangle {
+        id: breadcrumbContainer
+
         anchors.left: leftActions.right
-        anchors.right: rightActions.left
+        anchors.right: search.left
         anchors.leftMargin: FilesMetrics.topbarSpacing
         anchors.rightMargin: FilesMetrics.topbarSpacing
         anchors.verticalCenter: parent.verticalCenter
         height: FilesMetrics.topbarControlSize
         radius: Theme.fullRadius(width, height)
         color: Theme.surfaceContainerHigh
-        visible: breadcrumb.visible
-    }
+        clip: true
 
-    PathBar {
-        id: breadcrumb
-        anchors.left: leftActions.right
-        anchors.right: searchButton.left
-        anchors.leftMargin: FilesMetrics.topbarSpacing
-        anchors.rightMargin: FilesMetrics.topbarSpacing
-        anchors.verticalCenter: parent.verticalCenter
-        visible: !topbar.editing && topbar.filterText === ""
-        path: topbar.currentPath
-        editable: false
-        flat: true
-        onEditRequested: topbar.focusLocation()
-        onNavigated: target => topbar.openRecent(target)
-        onTabRequested: target => topbar.tabRequested(target)
-    }
+        Row {
+            id: breadcrumbContent
+            anchors.fill: parent
+            anchors.leftMargin: Theme.spacingM
+            anchors.rightMargin: Theme.spacingM
+            spacing: Theme.spacingS
 
-    FlatButton {
-        id: searchButton
-        anchors.right: rightActions.left
-        anchors.rightMargin: FilesMetrics.topbarSpacing
-        anchors.verticalCenter: parent.verticalCenter
-        visible: breadcrumb.visible
-        iconName: "search"
-        tooltipText: I18n.tr("Search", "button focusing the combined address and search field")
-        onClicked: topbar.focusSearch()
+            DIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: "folder"
+                size: Theme.iconSizeMedium
+                color: Theme.primary
+            }
+
+            PathBar {
+                id: breadcrumb
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - Theme.iconSizeMedium - Theme.spacingS
+                path: topbar.currentPath
+                editable: false
+                flat: true
+                onEditRequested: topbar.focusLocation()
+                onNavigated: target => topbar.openRecent(target)
+                onTabRequested: target => topbar.tabRequested(target)
+            }
+        }
     }
 
     DSearchField {
         id: search
-        visible: !breadcrumb.visible
 
-        anchors.left: leftActions.right
         anchors.right: rightActions.left
-        anchors.leftMargin: FilesMetrics.topbarSpacing
         anchors.rightMargin: FilesMetrics.topbarSpacing
         anchors.verticalCenter: parent.verticalCenter
+        readonly property real availableWidth: topbar.width - leftActions.width - rightActions.width - FilesMetrics.topbarSpacing * 3
+        readonly property real collapsedWidth: Math.min(220, Math.max(160, availableWidth * 0.28))
+        readonly property real expandedWidth: Math.min(450, Math.max(260, availableWidth * 0.65))
+        width: topbar.searchExpanded ? expandedWidth : collapsedWidth
         controlHeight: FilesMetrics.topbarControlSize
         leftIconSize: Theme.iconSizeMedium
-        backgroundColor: Theme.surfaceContainerLowest
-        placeholderText: I18n.tr("Search or enter a path", "placeholder in the combined address and search field")
+        backgroundColor: Theme.surfaceContainerHigh
+        placeholderText: I18n.tr("Search in Files", "placeholder in the search field")
         keyForwardTargets: [topbar]
+
+        Behavior on width {
+            enabled: Theme.animationsEnabled
+            NumberAnimation {
+                duration: Theme.expressiveDurations.expressiveFastSpatial
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Theme.expressiveCurves.expressiveFastSpatial
+            }
+        }
         onFocusStateChanged: hasFocus => topbar.searchFocused = hasFocus
         onTextChanged: {
             recentPopup.highlightIndex = -1;

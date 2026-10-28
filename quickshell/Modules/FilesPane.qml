@@ -34,6 +34,7 @@ FocusScope {
     readonly property alias path: browser.path
     readonly property alias canGoBack: browser.canGoBack
     readonly property alias canGoForward: browser.canGoForward
+    readonly property alias canGoUp: browser.canGoUp
     readonly property alias editingPath: browser.editingPath
     readonly property alias searchModel: searchModel
     readonly property bool resultsActive: searchModel.active
@@ -530,7 +531,7 @@ FocusScope {
         networkThumbnails: SettingsData.networkThumbnails
         folderJump: FolderHistory
         unlistedPaths: [TrashService.filesPath, RecentService.path]
-        header: pane.filtering ? filterHeader : null
+        header: pane.filtering ? filterHeader : statusHeader
         showPathBar: pane.showPathBar
         pathBarTrailing: paneStatus
         emptyText: {
@@ -700,6 +701,27 @@ FocusScope {
             hidden: pane.showHidden ? 0 : browser.directory.hiddenCount
             compact: pane.width < Theme.smallBreakpoint
             showClipboard: pane.active
+        }
+    }
+
+    Component {
+        id: statusHeader
+
+        Item {
+            width: browser.body.width
+            implicitHeight: headerStatus.implicitHeight + Theme.spacingS
+            visible: !pane.virtualActive && !pane.filtering && browser.directory.total > 0
+
+            PaneStatus {
+                id: headerStatus
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.spacingM
+                anchors.verticalCenter: parent.verticalCenter
+                total: browser.directory.total
+                hidden: pane.showHidden ? 0 : browser.directory.hiddenCount
+                compact: pane.width < Theme.smallBreakpoint
+                showClipboard: false
+            }
         }
     }
 
