@@ -86,6 +86,19 @@ FilePlaceSection {
         }
     }
 
+    function launcherIcon(key) {
+        switch (key) {
+        case "steam":
+            return "steam";
+        case "heroic":
+            return "heroic";
+        case "lutris":
+            return "lutris";
+        default:
+            return "sports_esports";
+        }
+    }
+
     function expanded(key) {
         return expandedGroups.includes(key);
     }
@@ -100,8 +113,17 @@ FilePlaceSection {
         expandedGroups = next;
     }
 
-    visible: shown.length > 0
+    readonly property bool sectionVisible: !SettingsData.hiddenSidebarSections.includes("games") || SettingsData.showHiddenSidebarSections
+    visible: sectionVisible && shown.length > 0
+    isHiddenSection: SettingsData.hiddenSidebarSections.includes("games")
+    onHeaderClicked: {
+        if (SettingsData.hiddenSidebarSections.includes("games"))
+            SettingsData.hiddenSidebarSections = SettingsData.hiddenSidebarSections.filter(s => s !== "games");
+        else
+            SettingsData.hiddenSidebarSections = SettingsData.hiddenSidebarSections.concat(["games"]);
+    }
     title: I18n.tr("Games", "sidebar section listing game libraries")
+    iconName: "sports_esports"
 
     Repeater {
         model: section.shown
@@ -110,16 +132,32 @@ FilePlaceSection {
             id: group
 
             required property var modelData
+            required property int index
 
             width: section.width
             spacing: FileBrowserMetrics.sidebarRowGap
 
             FilePlaceRow {
+                readonly property bool singleFolder: group.modelData.places.length === 1
+                readonly property var singlePlace: singleFolder ? group.modelData.places[0] : null
                 label: section.groupTitle(group.modelData.key)
-                glyph: "sports_esports"
-                expandable: true
-                expanded: section.expanded(group.modelData.key)
-                onClicked: section.toggle(group.modelData.key)
+                iconName: section.launcherIcon(group.modelData.key)
+                expandable: !singleFolder
+                expanded: !singleFolder && section.expanded(group.modelData.key)
+                isFirstInGroup: true
+                isLastInGroup: singleFolder || (!expanded || group.modelData.places.length === 0)
+                selected: singleFolder && singlePlace && !singlePlace.missing && section.currentPath === singlePlace.path
+                dropPath: singleFolder && singlePlace && !singlePlace.missing ? singlePlace.path : ""
+                onClicked: {
+                    if (singleFolder && singlePlace && !singlePlace.missing)
+                        section.navigateRequested(singlePlace.path);
+                    else if (!singleFolder)
+                        section.toggle(group.modelData.key);
+                }
+                onMiddleClicked: {
+                    if (singleFolder && singlePlace && !singlePlace.missing)
+                        section.tabRequested(singlePlace.path);
+                }
             }
 
             Item {
@@ -148,6 +186,10 @@ FilePlaceSection {
 
                         FilePlaceRow {
                             required property var modelData
+                            required property int index
+
+                            isFirstInGroup: false
+                            isLastInGroup: index === group.modelData.places.length - 1
 
                             visible: section.expanded(group.modelData.key)
                             label: section.placeTitle(modelData)

@@ -16,7 +16,18 @@ FilePlaceSection {
     signal dropRequested(string path, var drop)
     signal connectRequested
 
+    readonly property bool sectionVisible: !SettingsData.hiddenSidebarSections.includes("network") || SettingsData.showHiddenSidebarSections
+    visible: sectionVisible
+    isHiddenSection: SettingsData.hiddenSidebarSections.includes("network")
+    onHeaderClicked: {
+        if (SettingsData.hiddenSidebarSections.includes("network"))
+            SettingsData.hiddenSidebarSections = SettingsData.hiddenSidebarSections.filter(s => s !== "network");
+        else
+            SettingsData.hiddenSidebarSections = SettingsData.hiddenSidebarSections.concat(["network"]);
+    }
+
     title: I18n.tr("Network", "sidebar section listing remote locations")
+    iconName: "language"
     emptyText: {
         if (NetworkService.available)
             return "";
@@ -33,7 +44,10 @@ FilePlaceSection {
 
         FilePlaceRow {
             required property var modelData
+            required property int index
 
+            isFirstInGroup: index === 0
+            isLastInGroup: !NetworkService.available && index === NetworkService.networkMounts.length - 1
             label: modelData.name
             iconName: modelData.iconName
             actionIcon: "eject"
@@ -53,6 +67,8 @@ FilePlaceSection {
 
     FilePlaceRow {
         visible: NetworkService.available
+        isFirstInGroup: NetworkService.networkMounts.length === 0
+        isLastInGroup: true
         label: I18n.tr("Connect to Server…", "sidebar entry opening the connect to server dialog")
         iconName: "folder-remote"
         busy: NetworkService.connecting

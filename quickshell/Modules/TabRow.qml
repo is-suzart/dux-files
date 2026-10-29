@@ -163,7 +163,34 @@ Item {
                     current: index === row.currentIndex
                     onWidthChanged: row.layout()
                     onClicked: row.tabSelected(index)
-                    onCloseRequested: row.tabClosed(index)
+                    onCloseRequested: {
+                        if (Theme.animationsEnabled) {
+                            closeAnim.start();
+                        } else {
+                            row.tabClosed(index);
+                        }
+                    }
+
+                    ParallelAnimation {
+                        id: closeAnim
+                        NumberAnimation {
+                            target: tab
+                            property: "opacity"
+                            to: 0
+                            duration: Theme.expressiveDurations.expressiveFastSpatial
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: Theme.expressiveCurves.expressiveFastSpatial
+                        }
+                        NumberAnimation {
+                            target: tab
+                            property: "scale"
+                            to: 0.8
+                            duration: Theme.expressiveDurations.expressiveFastSpatial
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: Theme.expressiveCurves.expressiveFastSpatial
+                        }
+                        onFinished: row.tabClosed(index)
+                    }
                     onDropHovered: row.tabDropHovered(index)
                     onDropped: drop => row.tabDropped(index, drop)
                     onMenuRequested: (pointX, pointY) => {
@@ -172,8 +199,39 @@ Item {
                     }
 
                     Behavior on x {
-                        enabled: row.draggingIndex >= 0 && !tab.dragging && Theme.animationsEnabled
+                        enabled: !tab.dragging && Theme.animationsEnabled
                         NumberAnimation {
+                            duration: Theme.expressiveDurations.expressiveFastSpatial
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: Theme.expressiveCurves.expressiveFastSpatial
+                        }
+                    }
+
+                    opacity: 1
+                    scale: 1
+
+                    Component.onCompleted: {
+                        if (Theme.animationsEnabled) {
+                            opacity = 0;
+                            scale = 0.9;
+                            enterAnim.start();
+                        }
+                    }
+
+                    ParallelAnimation {
+                        id: enterAnim
+                        NumberAnimation {
+                            target: tab
+                            property: "opacity"
+                            to: 1
+                            duration: Theme.expressiveDurations.expressiveFastSpatial
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: Theme.expressiveCurves.expressiveFastSpatial
+                        }
+                        NumberAnimation {
+                            target: tab
+                            property: "scale"
+                            to: 1
                             duration: Theme.expressiveDurations.expressiveFastSpatial
                             easing.type: Easing.BezierSpline
                             easing.bezierCurve: Theme.expressiveCurves.expressiveFastSpatial

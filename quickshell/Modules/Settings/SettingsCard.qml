@@ -7,6 +7,7 @@ Column {
     readonly property bool isSettingsCard: true
 
     property string title: ""
+    property string iconName: ""
     default property alias content: contentGroup.data
 
     width: parent?.width ?? 0
@@ -15,6 +16,7 @@ Column {
     SettingsSectionLabel {
         width: parent.width
         text: root.title
+        iconName: root.iconName
         visible: root.title !== ""
     }
 

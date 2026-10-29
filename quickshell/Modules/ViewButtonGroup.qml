@@ -51,6 +51,8 @@ Row {
         width: FileBrowserMetrics.navPairSegmentWidth
         height: FileBrowserMetrics.controlSize
         color: selected ? Style.selectedContainer : Style.chipSurface
+        border.width: Style.layerOutlineWidth
+        border.color: Style.outlineMedium
         topLeftRadius: mirrored ? rightRad : leftRad
         bottomLeftRadius: mirrored ? rightRad : leftRad
         topRightRadius: mirrored ? leftRad : rightRad

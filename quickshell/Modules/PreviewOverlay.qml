@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Effects
 import qs.Common
 import qs.Services
 import qs.DCommon.Widgets
@@ -202,6 +203,15 @@ FocusScope {
             anchors.right: parent.right
             anchors.margins: Theme.spacingM
             clip: true
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                maskEnabled: true
+                maskSource: Rectangle {
+                    width: stage.width
+                    height: stage.height
+                    radius: Theme.cornerRadiusM
+                }
+            }
 
             Image {
                 id: picture

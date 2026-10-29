@@ -311,8 +311,8 @@ Singleton {
     property color surfaceTextMedium: Qt.rgba(surfaceText.r, surfaceText.g, surfaceText.b, 0.7)
 
     property color outlineButton: Qt.rgba(outline.r, outline.g, outline.b, 0.5)
-    readonly property real layerOutlineOpacity: Math.max(0, Math.min(1, SettingsData.blurLayerOutlineOpacity))
-    readonly property int layerOutlineWidth: layerOutlineOpacity > 0 ? 1 : 0
+    readonly property real layerOutlineOpacity: SettingsData.blurLayerOutlineOpacity > 0 ? SettingsData.blurLayerOutlineOpacity : dmsBlurLayerOutlineOpacity
+    readonly property int layerOutlineWidth: 1
     property color outlineMedium: withAlpha(outline, layerOutlineOpacity)
     property color outlineStrong: withAlpha(outline, Math.min(1, layerOutlineOpacity * 1.5))
     property color outlineHeavy: Qt.rgba(outline.r, outline.g, outline.b, 0.2)
@@ -526,19 +526,40 @@ Singleton {
         return Math.max(Font.Thin, Math.min(Font.Black, weight + fontWeight - Font.Normal));
     }
 
-    readonly property real popupTransparency: 1.0
+    property real dmsFloatingTransparency: 0.4
+    property real dmsPopupTransparency: 0.4
+    property bool dmsBlurLayersActive: true
+    property real dmsBlurLayerOutlineOpacity: 0.28
+
+    readonly property real effectiveWindowTransparency: {
+        if (!SettingsData.windowTransparencyEnabled)
+            return 1.0;
+        if (SettingsData.windowTransparencyCustom >= 0)
+            return SettingsData.windowTransparencyCustom;
+        return dmsFloatingTransparency;
+    }
+
+    readonly property real effectivePopupTransparency: {
+        if (!SettingsData.windowTransparencyEnabled)
+            return 1.0;
+        if (SettingsData.windowTransparencyCustom >= 0)
+            return SettingsData.windowTransparencyCustom;
+        return dmsPopupTransparency;
+    }
+
+    readonly property real popupTransparency: effectivePopupTransparency
     readonly property bool foregroundLayers: true
-    readonly property real foregroundLayerTransparency: 1.0
+    readonly property real foregroundLayerTransparency: effectiveWindowTransparency
     readonly property real foregroundAlpha: Surface.foregroundAlpha(foregroundLayers, foregroundLayerTransparency)
-    readonly property bool blurLayersActive: false
+    readonly property bool blurLayersActive: SettingsData.windowTransparencyEnabled && dmsBlurLayersActive
     readonly property bool connectedSurfaceBlurEnabled: true
 
     readonly property color floatingSurface: withAlpha(surfaceContainer, popupTransparency)
     readonly property color nestedSurface: withAlpha(surfaceContainerHigh, foregroundAlpha)
-    readonly property real floatingWindowTransparency: popupTransparency
+    readonly property real floatingWindowTransparency: effectiveWindowTransparency
     readonly property bool floatingWindowForegroundLayers: foregroundLayers
     readonly property real floatingWindowForegroundTransparency: foregroundLayerTransparency
-    readonly property real floatingWindowForegroundAlpha: Surface.foregroundAlpha(floatingWindowForegroundLayers, floatingWindowForegroundTransparency)
+    readonly property real floatingWindowForegroundAlpha: SettingsData.windowTransparencyEnabled ? Math.max(0.65, Surface.foregroundAlpha(floatingWindowForegroundLayers, floatingWindowForegroundTransparency)) : Surface.foregroundAlpha(floatingWindowForegroundLayers, floatingWindowForegroundTransparency)
     readonly property color floatingWindowSurface: withAlpha(surfaceContainer, floatingWindowTransparency)
     readonly property color floatingWindowNestedSurface: withAlpha(surfaceContainerHigh, floatingWindowForegroundAlpha)
     readonly property color floatingWindowFieldColor: floatingWindowNestedSurface
@@ -736,5 +757,39 @@ Singleton {
             root.customThemeRaw = null;
             root.customThemeLoaded = false;
         }
+    }
+
+    FileView {
+        id: dmsSettingsView
+        path: {
+            const config = Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config");
+            return config + "/dms/settings.json";
+        }
+        blockLoading: false
+        watchChanges: true
+        printErrors: false
+
+        onLoaded: {
+            try {
+                const text = dmsSettingsView.text();
+                if (!text)
+                    return;
+                const data = JSON.parse(text);
+                if (typeof data.floatingWindowTransparency === "number")
+                    root.dmsFloatingTransparency = data.floatingWindowTransparency;
+                if (typeof data.popupTransparency === "number")
+                    root.dmsPopupTransparency = data.popupTransparency;
+                if (typeof data.blurLayersActive === "boolean")
+                    root.dmsBlurLayersActive = data.blurLayersActive;
+                if (typeof data.blurLayerOutlineOpacity === "number")
+                    root.dmsBlurLayerOutlineOpacity = data.blurLayerOutlineOpacity;
+                else if (typeof data.blurBorderOpacity === "number")
+                    root.dmsBlurLayerOutlineOpacity = data.blurBorderOpacity;
+            } catch (e) {
+                root.log.warn(`ignoring unreadable dms settings: ${e}`);
+            }
+        }
+
+        onFileChanged: dmsSettingsView.reload()
     }
 }

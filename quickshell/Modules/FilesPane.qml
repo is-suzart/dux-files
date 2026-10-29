@@ -533,7 +533,7 @@ FocusScope {
         unlistedPaths: [TrashService.filesPath, RecentService.path]
         header: pane.filtering ? filterHeader : statusHeader
         showPathBar: pane.showPathBar
-        pathBarTrailing: paneStatus
+        pathBarTrailing: null
         emptyText: {
             if (pane.virtualActive)
                 return "";

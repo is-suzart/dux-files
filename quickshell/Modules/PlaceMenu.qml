@@ -68,6 +68,27 @@ FileMenu {
         }
     }
 
+    FileMenuItem {
+        visible: (menu.bookmark || menu.trash || menu.recent) && !SettingsData.hiddenSidebarPlaces.includes(menu.path)
+        text: I18n.tr("Hide from sidebar", "sidebar place context menu action to hide item")
+        iconName: "visibility_off"
+        onClicked: {
+            menu.close();
+            if (!SettingsData.hiddenSidebarPlaces.includes(menu.path))
+                SettingsData.hiddenSidebarPlaces = SettingsData.hiddenSidebarPlaces.concat([menu.path]);
+        }
+    }
+
+    FileMenuItem {
+        visible: (menu.bookmark || menu.trash || menu.recent) && SettingsData.hiddenSidebarPlaces.includes(menu.path)
+        text: I18n.tr("Unhide from sidebar", "sidebar place context menu action to unhide item")
+        iconName: "visibility"
+        onClicked: {
+            menu.close();
+            SettingsData.hiddenSidebarPlaces = SettingsData.hiddenSidebarPlaces.filter(p => p !== menu.path);
+        }
+    }
+
     FileMenuDivider {
         visible: !menu.bookmark
     }

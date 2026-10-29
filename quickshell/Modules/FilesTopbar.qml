@@ -26,6 +26,7 @@ Item {
     property string currentPath: ""
     property bool searchFocused: false
     property bool editing: false
+    property bool isRecursiveSearch: false
     readonly property bool pathInput: isLocation(search.text)
     property var completions: []
     property int completionRequest: 0
@@ -57,10 +58,7 @@ Item {
     }
 
     function focusLocation() {
-        editing = true;
-        search.text = currentPath;
-        search.forceActiveFocus();
-        search.selectAll();
+        breadcrumb.startEditing();
     }
     property bool folderRemembered: false
     property bool folderHasSettings: false
@@ -208,17 +206,20 @@ Item {
     signal resultsRequested
 
     function focusSearch() {
+        isRecursiveSearch = true;
         editing = true;
         search.forceActiveFocus();
         search.selectAll();
     }
 
     function openFilter(text) {
+        isRecursiveSearch = false;
         search.text = filterText + text;
         focusFilter();
     }
 
     function focusFilter() {
+        isRecursiveSearch = false;
         editing = true;
         search.forceActiveFocus();
         search.cursorPosition = search.text.length;
@@ -230,6 +231,7 @@ Item {
 
     function resetInput() {
         editing = false;
+        isRecursiveSearch = false;
         search.text = "";
         filterChanged("");
     }
@@ -308,7 +310,7 @@ Item {
             onClicked: topbar.reloadRequested()
         }
 
-        ViewButtonGroup {
+        ViewButton {
             anchors.verticalCenter: parent.verticalCenter
             visible: !topbar.compact
             viewMode: topbar.viewMode
@@ -511,6 +513,8 @@ Item {
         height: FilesMetrics.topbarControlSize
         radius: Theme.fullRadius(width, height)
         color: Theme.surfaceContainerHigh
+        border.width: Theme.layerOutlineWidth
+        border.color: Theme.outlineMedium
         clip: true
 
         Row {
@@ -532,10 +536,12 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 width: parent.width - Theme.iconSizeMedium - Theme.spacingS
                 path: topbar.currentPath
-                editable: false
+                editable: true
                 flat: true
-                onEditRequested: topbar.focusLocation()
+                backend: DirectoryService
+                folderJump: FolderHistory
                 onNavigated: target => topbar.openRecent(target)
+                onLocationRequested: location => topbar.locationRequested(location)
                 onTabRequested: target => topbar.tabRequested(target)
             }
         }
@@ -554,7 +560,7 @@ Item {
         controlHeight: FilesMetrics.topbarControlSize
         leftIconSize: Theme.iconSizeMedium
         backgroundColor: Theme.surfaceContainerHigh
-        placeholderText: I18n.tr("Search in Files", "placeholder in the search field")
+        placeholderText: topbar.isRecursiveSearch ? I18n.tr("Search in Files", "placeholder in the search field") : I18n.tr("Filter folder", "placeholder in the filter field")
         keyForwardTargets: [topbar]
 
         Behavior on width {
@@ -587,8 +593,14 @@ Item {
                 topbar.openRecent(text.trim());
                 return;
             }
-            if (text.trim() !== "")
-                topbar.searchRequested(text.trim());
+            if (text.trim() !== "") {
+                if (topbar.isRecursiveSearch) {
+                    topbar.searchRequested(text.trim());
+                } else {
+                    topbar.filterChanged(text.trim());
+                    topbar.resultsRequested();
+                }
+            }
         }
     }
 

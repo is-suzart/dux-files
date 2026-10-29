@@ -107,6 +107,13 @@ Singleton {
     property alias vimKeys: adapter.vimKeys
     property alias listTyping: adapter.listTyping
     property alias gtkBookmarksOffered: adapter.gtkBookmarksOffered
+    property alias windowTransparencyEnabled: adapter.windowTransparencyEnabled
+    property alias windowTransparencyCustom: adapter.windowTransparencyCustom
+    property alias hiddenSidebarPlaces: adapter.hiddenSidebarPlaces
+    property alias hiddenSidebarSections: adapter.hiddenSidebarSections
+    property alias showHiddenSidebarPlaces: adapter.showHiddenSidebarPlaces
+    property alias showHiddenSidebarSections: adapter.showHiddenSidebarSections
+    property alias previewMode: adapter.previewMode
 
     function flush() {
         if (!writeDebounce.running)
@@ -223,6 +230,13 @@ Singleton {
             property bool vimKeys: false
             property string listTyping: "jump"
             property bool gtkBookmarksOffered: false
+            property bool windowTransparencyEnabled: false
+            property real windowTransparencyCustom: -1
+            property var hiddenSidebarPlaces: []
+            property var hiddenSidebarSections: []
+            property bool showHiddenSidebarPlaces: false
+            property bool showHiddenSidebarSections: false
+            property string previewMode: "sidebar"
         }
     }
 }

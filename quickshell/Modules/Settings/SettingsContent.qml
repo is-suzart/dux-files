@@ -117,6 +117,17 @@ Item {
         }
     ]
 
+    readonly property var previewModeOptions: [
+        {
+            label: I18n.tr("Sidebar drawer", "preview drawer display mode option"),
+            value: "sidebar"
+        },
+        {
+            label: I18n.tr("Full page overlay", "preview full overlay display mode option"),
+            value: "full"
+        }
+    ]
+
     readonly property var dragOptions: [
         {
             label: I18n.tr("Move, copy across drives", "drag default action option"),
@@ -522,7 +533,7 @@ Item {
     Rectangle {
         anchors.fill: pagesHost
         visible: root.searching
-        color: Theme.surface
+        color: "transparent"
 
         SettingsPage {
             StyledText {
@@ -607,6 +618,7 @@ Item {
         SettingsPage {
             SettingsCard {
                 title: I18n.tr("Window", "general settings section label")
+                iconName: "window"
 
                 SettingsButtonGroupRow {
                     text: I18n.tr("Close behavior", "close behavior setting label")
@@ -655,6 +667,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Open and save dialogs", "general settings section label for the portal file chooser")
+                iconName: "file_open"
 
                 SettingsToggleRow {
                     text: I18n.tr("Use Dux Files for open and save dialogs", "setting label for serving the desktop portal file chooser")
@@ -701,6 +714,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("View", "keyboard shortcut group")
+                iconName: "grid_view"
 
                 SettingsToggleRow {
                     text: I18n.tr("Always show tabs", "setting keeping the tab bar visible with one tab")
@@ -800,6 +814,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Files", "keyboard shortcut group")
+                iconName: "folder"
 
                 SettingsButtonGroupRow {
                     text: I18n.tr("Open items with", "setting label choosing single or double click")
@@ -831,6 +846,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Keyboard", "general settings section label")
+                iconName: "keyboard"
 
                 SettingsToggleRow {
                     text: I18n.tr("Vim keys", "toggle label for vim style navigation")
@@ -870,6 +886,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Theme", "appearance settings section label")
+                iconName: "palette"
 
                 SettingsButtonGroupRow {
                     text: I18n.tr("Theme", "theme mode setting label")
@@ -1013,6 +1030,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Shape", "appearance settings section label")
+                iconName: "rounded_corner"
 
                 SettingsSliderRow {
                     text: I18n.tr("Radius strength", "global component corner rounding")
@@ -1029,6 +1047,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Density", "appearance settings section label")
+                iconName: "density_medium"
 
                 OptionGroupRow {
                     text: I18n.tr("Interface density", "interface density setting label")
@@ -1041,6 +1060,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Typography", "appearance settings section label")
+                iconName: "text_fields"
 
                 OptionGroupRow {
                     text: I18n.tr("Font source", "font source setting label")
@@ -1110,6 +1130,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Windows", "appearance settings section label")
+                iconName: "window"
 
                 SettingsToggleRow {
                     text: I18n.tr("Title bars", "window title bars toggle label")
@@ -1126,10 +1147,31 @@ Item {
                     checked: SettingsData.showTitleBar
                     onToggled: checked => SettingsData.showTitleBar = checked
                 }
+
+                SettingsToggleRow {
+                    text: I18n.tr("Window transparency", "window transparency toggle label")
+                    keywords: I18n.tr("window transparency opacity blur", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("Enables transparency and blur across windows and menus.", "window transparency toggle description")
+                    checked: SettingsData.windowTransparencyEnabled
+                    onToggled: checked => SettingsData.windowTransparencyEnabled = checked
+                }
+
+                SettingsSliderRow {
+                    visible: SettingsData.windowTransparencyEnabled
+                    text: I18n.tr("Transparency level", "window transparency level slider label")
+                    keywords: I18n.tr("window transparency opacity slider", "settings search keywords, space separated, add synonyms in your language")
+                    minimum: 10
+                    maximum: 100
+                    step: 5
+                    unit: "%"
+                    value: Math.round((SettingsData.windowTransparencyCustom >= 0 ? SettingsData.windowTransparencyCustom : Theme.dmsFloatingTransparency) * 100)
+                    onSliderValueChanged: newValue => SettingsData.windowTransparencyCustom = newValue / 100
+                }
             }
 
             SettingsCard {
                 title: I18n.tr("Motion", "appearance settings section label")
+                iconName: "animation"
 
                 SettingsSliderRow {
                     text: I18n.tr("Duration", "animation duration slider label")
@@ -1170,6 +1212,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Focus ring", "appearance settings section label")
+                iconName: "filter_center_focus"
 
                 SettingsToggleRow {
                     text: I18n.tr("Focus ring", "focus ring toggle label")
@@ -1210,6 +1253,7 @@ Item {
         SettingsPage {
             SettingsCard {
                 title: I18n.tr("Open in terminal", "context menu entry opening a terminal")
+                iconName: "terminal"
 
                 OptionDropdownRow {
                     text: I18n.tr("Terminal", "setting label for the terminal emulator")
@@ -1223,6 +1267,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Open files", "behaviour settings section label for the file opener")
+                iconName: "open_in_new"
 
                 OptionDropdownRow {
                     text: I18n.tr("Open files with", "file opener setting label")
@@ -1236,6 +1281,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Drag and drop", "behaviour settings section label")
+                iconName: "drag_indicator"
 
                 OptionDropdownRow {
                     text: I18n.tr("Dropping without a modifier", "drag default action setting label")
@@ -1249,6 +1295,16 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Thumbnails", "capability row on the about page")
+                iconName: "image"
+
+                OptionDropdownRow {
+                    text: I18n.tr("Preview mode", "preview mode dropdown setting label")
+                    keywords: I18n.tr("preview mode spacebar sidebar full page overlay", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("Choose between a side drawer or full page overlay for Spacebar preview.", "preview mode setting description")
+                    optionList: root.previewModeOptions
+                    current: SettingsData.previewMode
+                    onPicked: value => SettingsData.previewMode = value
+                }
 
                 SettingsToggleRow {
                     text: I18n.tr("Show thumbnails", "thumbnails toggle label")
@@ -1283,6 +1339,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Search in Files", "placeholder in the search field")
+                iconName: "search"
 
                 SettingsToggleRow {
                     text: I18n.tr("Include hidden files", "search hidden files toggle label")
@@ -1336,6 +1393,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Games in the sidebar", "games settings section label")
+                iconName: "sports_esports"
 
                 SettingsToggleRow {
                     text: I18n.tr("Show games", "games setting label")

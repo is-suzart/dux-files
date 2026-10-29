@@ -456,6 +456,13 @@ QtObject {
     }
 
     function togglePreview() {
+        if (SettingsData.previewMode === "full") {
+            if (mainWindow.preview.open)
+                mainWindow.preview.dismiss();
+            else if (mainWindow.previewTarget)
+                mainWindow.preview.present(mainWindow.previewTarget);
+            return;
+        }
         const open = !mainWindow.previewOpen;
         mainWindow.previewOpen = open;
         SessionData.remember({

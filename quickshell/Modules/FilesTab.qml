@@ -23,7 +23,12 @@ StyledButton {
 
     implicitWidth: Math.max(FilesMetrics.tabMinWidth, Math.min(FilesMetrics.tabMaxWidth, title.implicitWidth + closeButton.width + Theme.spacingM * 2 + Theme.spacingS))
     implicitHeight: FilesMetrics.tabHeight
-    radius: Theme.fullRadius(width, height)
+    topLeftRadius: Theme.cornerRadiusM
+    topRightRadius: Theme.cornerRadiusM
+    bottomLeftRadius: 0
+    bottomRightRadius: 0
+    border.width: Theme.layerOutlineWidth
+    border.color: current ? Theme.outlineMedium : Theme.withAlpha(Theme.outlineMedium, 0.5)
     color: dragging ? Theme.surfaceContainerHighest : dropZone.containsDrag ? Theme.primaryContainer : current ? Theme.surfaceContainerLowest : "transparent"
     Accessible.role: Accessible.PageTab
     Accessible.name: label

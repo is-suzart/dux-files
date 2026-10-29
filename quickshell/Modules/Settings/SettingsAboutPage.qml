@@ -126,6 +126,7 @@ Item {
 
         SettingsCard {
             title: I18n.tr("Backend", "about page daemon section header")
+            iconName: "dns"
 
             SettingsRow {
                 title: I18n.tr("Version", "about page daemon version column label")
@@ -165,6 +166,7 @@ Item {
 
         SettingsCard {
             title: I18n.tr("Capabilities", "about page daemon capabilities label")
+            iconName: "verified"
 
             Repeater {
                 model: root.featureRows
