@@ -111,7 +111,21 @@ Item {
     }
 
     function presentPlaceMenu(kind, path, source, pointX, pointY) {
+        sidebarContextMenu.close();
+        deviceMenu.close();
         placeMenu.present(kind, path, source, pointX, pointY);
+    }
+
+    function presentDeviceMenu(device, source, pointX, pointY) {
+        sidebarContextMenu.close();
+        placeMenu.close();
+        deviceMenu.present(device, source, pointX, pointY);
+    }
+
+    function presentSidebarContextMenu(source, pointX, pointY) {
+        placeMenu.close();
+        deviceMenu.close();
+        sidebarContextMenu.present(source, pointX, pointY);
     }
 
     function presentTabMenu(index, source, pointX, pointY) {
@@ -182,6 +196,62 @@ Item {
         onPropertiesRequested: path => menus.mainWindow.dialogs.showPropertiesFor([path])
         onEmptyTrashRequested: menus.mainWindow.dialogs.confirmEmptyTrash()
         onClearRecentRequested: menus.mainWindow.dialogs.confirmClearRecent()
+    }
+
+    DeviceMenu {
+        id: deviceMenu
+
+        anchorItem: menus.anchorItem
+        onTabRequested: path => menus.mainWindow.tabManager.newTab(path, false)
+        onWindowRequested: path => menus.mainWindow.actions.newWindowAt(path)
+        onActivateRequested: device => {
+            if (device.encrypted && !device.unlocked)
+                menus.mainWindow.dialogs.askUnlock(device);
+            else
+                DevicesService.mount(device.id, result => {
+                    if (!result.error && result.mountPoint)
+                        menus.mainWindow.openPath(result.mountPoint, false);
+                });
+        }
+        onDetachRequested: device => {
+            if (device.encrypted && device.unlocked)
+                DevicesService.lock(device.id, () => {});
+            else if (device.ejectable || device.canPowerOff)
+                DevicesService.eject(device.id, () => {});
+            else
+                DevicesService.unmount(device.id, false, () => {});
+        }
+    }
+
+    FileMenu {
+        id: sidebarContextMenu
+
+        anchorItem: menus.anchorItem
+
+        function present(source, pointX, pointY) {
+            const point = source.mapToItem(menus.anchorItem, pointX, pointY);
+            openAt(point.x, point.y);
+        }
+
+        FileMenuItem {
+            text: I18n.tr("Show hidden sections", "sidebar context menu item to toggle hidden sections")
+            iconName: "view_agenda"
+            checked: SettingsData.showHiddenSidebarSections
+            onClicked: {
+                SettingsData.showHiddenSidebarSections = !SettingsData.showHiddenSidebarSections;
+                sidebarContextMenu.close();
+            }
+        }
+
+        FileMenuItem {
+            text: I18n.tr("Show hidden folders and drives", "sidebar context menu item to toggle hidden places and drives")
+            iconName: "visibility"
+            checked: SettingsData.showHiddenSidebarPlaces
+            onClicked: {
+                SettingsData.showHiddenSidebarPlaces = !SettingsData.showHiddenSidebarPlaces;
+                sidebarContextMenu.close();
+            }
+        }
     }
 
     FileMenu {

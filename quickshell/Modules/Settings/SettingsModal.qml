@@ -8,6 +8,7 @@ FloatingWindow {
     id: settingsModal
 
     property int currentTabIndex: 0
+    property var parentWindow: null
     property bool isCompactMode: width < SettingsMetrics.compactBreakpoint
     property bool menuVisible: false
     readonly property bool compactSearch: isCompactMode && menuVisible && content.searching
@@ -130,7 +131,16 @@ FloatingWindow {
                     anchors.right: parent.right
                     anchors.top: settingsModal.compactSearch ? sidebar.bottom : parent.top
                     anchors.bottom: parent.bottom
+                    anchors.margins: Theme.spacingM
                     clip: true
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: Theme.windowRadius
+                        color: Theme.foregroundColor(Theme.cardSurface, true)
+                        border.width: Theme.layerOutlineWidth
+                        border.color: Theme.outlineMedium
+                    }
 
                     SettingsContent {
                         id: content

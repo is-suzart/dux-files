@@ -19,12 +19,17 @@ StyledButton {
     signal dropped(var drop)
     signal menuRequested(real pointX, real pointY)
 
-    readonly property color contentColor: current ? Theme.primary : Theme.onSurfaceVariant
+    readonly property color contentColor: current ? Theme.surfaceText : Theme.onSurfaceVariant
 
-    implicitWidth: Math.max(FilesMetrics.tabMinWidth, Math.min(FilesMetrics.tabMaxWidth, title.implicitWidth + closeButton.width + Theme.spacingL))
+    implicitWidth: Math.max(FilesMetrics.tabMinWidth, Math.min(FilesMetrics.tabMaxWidth, title.implicitWidth + closeButton.width + Theme.spacingM * 2 + Theme.spacingS))
     implicitHeight: FilesMetrics.tabHeight
-    radius: Theme.cornerRadiusM
-    color: dragging ? Theme.surfaceContainerHigh : dropZone.containsDrag ? Theme.primaryContainer : "transparent"
+    topLeftRadius: Theme.cornerRadiusM
+    topRightRadius: Theme.cornerRadiusM
+    bottomLeftRadius: 0
+    bottomRightRadius: 0
+    border.width: Theme.layerOutlineWidth
+    border.color: current ? Theme.outlineMedium : Theme.withAlpha(Theme.outlineMedium, 0.5)
+    color: dragging ? Theme.surfaceContainerHighest : dropZone.containsDrag ? Theme.primaryContainer : current ? Theme.surfaceContainerLowest : "transparent"
     Accessible.role: Accessible.PageTab
     Accessible.name: label
     Accessible.selected: current
@@ -109,21 +114,4 @@ StyledButton {
         onClicked: tab.closeRequested()
     }
 
-    Rectangle {
-        anchors.bottom: parent.bottom
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: tab.current ? Math.max(Theme.tabIndicatorMinWidth, tab.width - Theme.spacingL) : 0
-        height: Theme.tabIndicatorHeight
-        radius: Theme.cornerRadiusFull
-        color: Theme.primary
-
-        Behavior on width {
-            enabled: Theme.animationsEnabled
-            NumberAnimation {
-                duration: Theme.expressiveDurations.expressiveFastSpatial
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: Theme.expressiveCurves.expressiveFastSpatial
-            }
-        }
-    }
 }

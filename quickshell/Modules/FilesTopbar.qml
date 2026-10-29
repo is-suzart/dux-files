@@ -11,12 +11,13 @@ Item {
     id: topbar
 
     property bool splitView: false
-    property bool bookmarked: false
     property bool backEnabled: false
     property bool forwardEnabled: false
+    property bool upEnabled: false
     property bool compact: false
     property string viewMode: "list"
     property bool previewOpen: false
+    property bool previewExpandable: false
     property string sortKey: "name"
     property bool sortDescending: false
     property bool trashActive: false
@@ -24,11 +25,45 @@ Item {
     property string filterText: ""
     property string currentPath: ""
     property bool searchFocused: false
+    property bool editing: false
+    property bool isRecursiveSearch: false
+    readonly property bool pathInput: isLocation(search.text)
+    property var completions: []
+    property int completionRequest: 0
+    readonly property var completionTarget: editing && pathInput ? PathCompletion.target(search.text, currentPath, FilePaths.home) : null
+    readonly property var pathSuggestions: completionTarget ? PathCompletion.rank(completions, completionTarget, FilePaths.home, FileBrowserMetrics.suggestionCap) : []
+
+    onCompletionTargetChanged: fetchCompletions()
+
+    function fetchCompletions() {
+        const request = ++completionRequest;
+        completions = [];
+        const target = completionTarget;
+        if (!target)
+            return;
+        DirectoryService.list(target.dir, {
+            limit: FileBrowserMetrics.completionLimit,
+            includeHidden: target.prefix.startsWith("."),
+            dirsFirst: true,
+            sortKey: "name"
+        }, result => {
+            if (request === completionRequest)
+                completions = result.error ? [] : (result.entries || []).filter(entry => entry.isDir);
+        });
+    }
+
+    function isLocation(text) {
+        const value = text.trim();
+        return value.startsWith("/") || value === "~" || value.startsWith("~/") || value === "." || value === ".." || value.startsWith("./") || value.startsWith("../") || PathCompletion.isUri(value);
+    }
+
+    function focusLocation() {
+        breadcrumb.startEditing();
+    }
     property bool folderRemembered: false
     property bool folderHasSettings: false
 
     readonly property bool virtualActive: trashActive || recentActive
-    readonly property string bookmarkLabel: bookmarked ? I18n.tr("Remove bookmark", "tooltip on the bookmark button") : I18n.tr("Bookmark this folder", "tooltip on the bookmark button")
     readonly property var viewModes: [
         {
             "value": "list",
@@ -47,6 +82,7 @@ Item {
         }
     ]
     readonly property string previewLabel: I18n.tr("Preview", "view menu entry and shortcut showing or hiding the preview drawer")
+    readonly property string previewExpandLabel: I18n.tr("Open the preview in a large view", "keyboard shortcut opening the preview overlay")
     readonly property string useForAllLabel: I18n.tr("Use these settings for all folders", "view menu entry making this folder's sort and view the defaults")
     readonly property string resetFolderLabel: I18n.tr("Reset this folder", "view menu entry dropping this folder's own sort and view")
     readonly property var currentViewMode: viewModes.find(mode => mode.value === viewMode) ?? viewModes[0]
@@ -145,10 +181,12 @@ Item {
     signal sidebarToggled
     signal backRequested
     signal forwardRequested
+    signal upRequested
     signal splitToggled
-    signal bookmarkToggled
     signal viewModeSelected(string mode)
+    signal zoomRequested(int step)
     signal previewToggled
+    signal previewExpandRequested
     signal sortKeySelected(string key)
     signal sortDirectionToggled
     signal useForAllFoldersRequested
@@ -164,19 +202,25 @@ Item {
     signal searchRequested(string query)
     signal searchCleared
     signal locationRequested(var location)
+    signal tabRequested(string path)
     signal resultsRequested
 
     function focusSearch() {
+        isRecursiveSearch = true;
+        editing = true;
         search.forceActiveFocus();
         search.selectAll();
     }
 
     function openFilter(text) {
+        isRecursiveSearch = false;
         search.text = filterText + text;
         focusFilter();
     }
 
     function focusFilter() {
+        isRecursiveSearch = false;
+        editing = true;
         search.forceActiveFocus();
         search.cursorPosition = search.text.length;
     }
@@ -185,10 +229,19 @@ Item {
         return search.contains(search.mapFromItem(topbar, x, y));
     }
 
-    function clearSearch() {
+    function resetInput() {
+        editing = false;
+        isRecursiveSearch = false;
         search.text = "";
+        filterChanged("");
+    }
+
+    function clearSearch() {
+        resetInput();
         searchCleared();
     }
+
+    onCurrentPathChanged: resetInput()
 
     function openRecent(path) {
         DirectoryService.resolveLocation(path, currentPath, result => {
@@ -198,6 +251,8 @@ Item {
                 ToastService.info(FileFormat.operationError(result.code, result.error));
                 return;
             }
+            topbar.editing = false;
+            search.text = "";
             topbar.locationRequested(result.location);
         });
     }
@@ -214,7 +269,7 @@ Item {
     }
 
     onFilterTextChanged: {
-        if (search.text !== filterText)
+        if (!pathInput && search.text !== filterText)
             search.text = filterText;
     }
 
@@ -229,19 +284,14 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: FilesMetrics.topbarGroupSpacing
 
-        FlatButton {
-            anchors.verticalCenter: parent.verticalCenter
-            iconName: "menu"
-            tooltipText: I18n.tr("Toggle sidebar", "tooltip on the button showing or hiding the sidebar")
-            onClicked: topbar.sidebarToggled()
-        }
-
-        NavButtonPair {
+        NavButtonGroup {
             anchors.verticalCenter: parent.verticalCenter
             backEnabled: topbar.backEnabled
             forwardEnabled: topbar.forwardEnabled
+            upEnabled: topbar.upEnabled
             onBackRequested: topbar.backRequested()
             onForwardRequested: topbar.forwardRequested()
+            onUpRequested: topbar.upRequested()
         }
     }
 
@@ -255,44 +305,16 @@ Item {
         FlatButton {
             anchors.verticalCenter: parent.verticalCenter
             visible: !topbar.compact
-            enabled: !topbar.virtualActive
-            iconName: "bookmark"
-            iconFilled: topbar.bookmarked
-            iconColor: topbar.bookmarked ? Theme.primary : Theme.surfaceText
-            backgroundColor: Theme.chipSurface
-            tooltipText: topbar.bookmarkLabel
-            onClicked: topbar.bookmarkToggled()
+            iconName: "refresh"
+            tooltipText: I18n.tr("Reload", "menu entry re-reading the current folder")
+            onClicked: topbar.reloadRequested()
         }
 
-        FlatButton {
-            id: viewButton
-
+        ViewButton {
             anchors.verticalCenter: parent.verticalCenter
             visible: !topbar.compact
-            iconName: topbar.currentViewMode.icon
-            backgroundColor: Theme.chipSurface
-            tooltipText: I18n.tr("View", "keyboard shortcut group")
-            onClicked: menu.toggle(viewButton, "view")
-        }
-
-        FlatButton {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !topbar.compact
-            iconName: "view_sidebar"
-            iconColor: topbar.previewOpen ? Theme.onPrimary : Theme.surfaceText
-            backgroundColor: topbar.previewOpen ? Theme.primary : Theme.chipSurface
-            tooltipText: topbar.previewLabel
-            onClicked: topbar.previewToggled()
-        }
-
-        FlatButton {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !topbar.compact
-            iconName: "splitscreen_vertical_add"
-            iconColor: topbar.splitView ? Theme.onPrimary : Theme.surfaceText
-            backgroundColor: topbar.splitView ? Theme.primary : Theme.chipSurface
-            tooltipText: I18n.tr("Split view", "tooltip on the button showing a second pane")
-            onClicked: topbar.splitToggled()
+            viewMode: topbar.viewMode
+            onViewModeSelected: mode => topbar.viewModeSelected(mode)
         }
 
         FileSortButton {
@@ -302,7 +324,7 @@ Item {
             keys: topbar.activeSortKeys
             sortKey: topbar.sortKey
             descending: topbar.sortDescending
-            showLabel: !topbar.compact
+            showLabel: false
             onSortKeySelected: key => topbar.sortKeySelected(key)
             onDirectionToggled: topbar.sortDirectionToggled()
         }
@@ -312,7 +334,6 @@ Item {
 
             anchors.verticalCenter: parent.verticalCenter
             iconName: "more_vert"
-            backgroundColor: Theme.chipSurface
             tooltipText: I18n.tr("More actions", "tooltip on the overflow menu button")
             onClicked: menu.toggle(overflowButton, "more")
         }
@@ -347,14 +368,6 @@ Item {
                 action();
             }
 
-            FileMenuItem {
-                visible: menu.compactRows
-                enabled: !topbar.virtualActive
-                text: topbar.bookmarkLabel
-                iconName: topbar.bookmarked ? "bookmark_remove" : "bookmark"
-                onClicked: menu.pick(() => topbar.bookmarkToggled())
-            }
-
             Repeater {
                 model: topbar.viewModes
 
@@ -375,10 +388,35 @@ Item {
 
             FileMenuItem {
                 visible: menu.viewRows
+                text: I18n.tr("Zoom in", "menu entry making the file view bigger")
+                iconName: "zoom_in"
+                onClicked: topbar.zoomRequested(1)
+            }
+
+            FileMenuItem {
+                visible: menu.viewRows
+                text: I18n.tr("Zoom out", "menu entry making the file view smaller")
+                iconName: "zoom_out"
+                onClicked: topbar.zoomRequested(-1)
+            }
+
+            FileMenuDivider {
+                visible: menu.viewOnly
+            }
+
+            FileMenuItem {
+                visible: menu.viewRows
                 text: topbar.previewLabel
                 iconName: "view_sidebar"
                 checked: topbar.previewOpen
                 onClicked: menu.pick(() => topbar.previewToggled())
+            }
+
+            FileMenuItem {
+                visible: menu.viewRows && topbar.previewExpandable
+                text: topbar.previewExpandLabel
+                iconName: "open_in_full"
+                onClicked: menu.pick(() => topbar.previewExpandRequested())
             }
 
             FileMenuItem {
@@ -462,33 +500,107 @@ Item {
         }
     }
 
-    DSearchField {
-        id: search
+    readonly property bool searchExpanded: topbar.editing || topbar.searchFocused || topbar.filterText !== ""
+
+    Rectangle {
+        id: breadcrumbContainer
 
         anchors.left: leftActions.right
-        anchors.right: rightActions.left
+        anchors.right: search.left
         anchors.leftMargin: FilesMetrics.topbarSpacing
         anchors.rightMargin: FilesMetrics.topbarSpacing
         anchors.verticalCenter: parent.verticalCenter
+        height: FilesMetrics.topbarControlSize
+        radius: Theme.fullRadius(width, height)
+        color: Theme.surfaceContainerHigh
+        border.width: Theme.layerOutlineWidth
+        border.color: Theme.outlineMedium
+        clip: true
+
+        Row {
+            id: breadcrumbContent
+            anchors.fill: parent
+            anchors.leftMargin: Theme.spacingM
+            anchors.rightMargin: Theme.spacingM
+            spacing: Theme.spacingS
+
+            DIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: "folder"
+                size: Theme.iconSizeMedium
+                color: Theme.primary
+            }
+
+            PathBar {
+                id: breadcrumb
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - Theme.iconSizeMedium - Theme.spacingS
+                path: topbar.currentPath
+                editable: true
+                flat: true
+                backend: DirectoryService
+                folderJump: FolderHistory
+                onNavigated: target => topbar.openRecent(target)
+                onLocationRequested: location => topbar.locationRequested(location)
+                onTabRequested: target => topbar.tabRequested(target)
+            }
+        }
+    }
+
+    DSearchField {
+        id: search
+
+        anchors.right: rightActions.left
+        anchors.rightMargin: FilesMetrics.topbarSpacing
+        anchors.verticalCenter: parent.verticalCenter
+        readonly property real availableWidth: topbar.width - leftActions.width - rightActions.width - FilesMetrics.topbarSpacing * 3
+        readonly property real collapsedWidth: Math.min(220, Math.max(160, availableWidth * 0.28))
+        readonly property real expandedWidth: Math.min(450, Math.max(260, availableWidth * 0.65))
+        width: topbar.searchExpanded ? expandedWidth : collapsedWidth
         controlHeight: FilesMetrics.topbarControlSize
         leftIconSize: Theme.iconSizeMedium
-        backgroundColor: Theme.surfaceContainerLowest
-        placeholderText: I18n.tr("Search in Files", "placeholder in the search field")
+        backgroundColor: Theme.surfaceContainerHigh
+        placeholderText: topbar.isRecursiveSearch ? I18n.tr("Search in Files", "placeholder in the search field") : I18n.tr("Filter folder", "placeholder in the filter field")
         keyForwardTargets: [topbar]
+
+        Behavior on width {
+            enabled: Theme.animationsEnabled
+            NumberAnimation {
+                duration: Theme.expressiveDurations.expressiveFastSpatial
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Theme.expressiveCurves.expressiveFastSpatial
+            }
+        }
         onFocusStateChanged: hasFocus => topbar.searchFocused = hasFocus
         onTextChanged: {
             recentPopup.highlightIndex = -1;
-            if (text !== topbar.filterText)
-                topbar.filterChanged(text);
+            if (text === "" && topbar.editing) {
+                topbar.clearSearch();
+                return;
+            }
+            const query = topbar.pathInput ? "" : text;
+            if (query !== topbar.filterText)
+                topbar.filterChanged(query);
         }
+        onCleared: topbar.clearSearch()
         onAccepted: {
             const picked = recentPopup.highlightedRow();
             if (picked) {
                 topbar.openRecent(picked.path);
                 return;
             }
-            if (text.trim() !== "")
-                topbar.searchRequested(text.trim());
+            if (topbar.pathInput) {
+                topbar.openRecent(text.trim());
+                return;
+            }
+            if (text.trim() !== "") {
+                if (topbar.isRecursiveSearch) {
+                    topbar.searchRequested(text.trim());
+                } else {
+                    topbar.filterChanged(text.trim());
+                    topbar.resultsRequested();
+                }
+            }
         }
     }
 
@@ -497,6 +609,17 @@ Item {
         case Qt.Key_Escape:
             topbar.clearSearch();
             break;
+        case Qt.Key_Tab: {
+            if (!topbar.pathInput)
+                return;
+            const next = PathCompletion.tab(search.text, recentPopup.rows, recentPopup.highlightIndex);
+            if (!next)
+                return;
+            search.text = next.text;
+            search.cursorPosition = search.text.length;
+            recentPopup.highlightIndex = next.highlight;
+            break;
+        }
         case Qt.Key_Down:
             if (recentPopup.rows.length > 0) {
                 recentPopup.move(1);
@@ -521,8 +644,8 @@ Item {
         id: recentPopup
 
         anchorItem: search
-        rows: topbar.recentSuggestions
-        visible: topbar.recentSuggestions.length > 0
+        rows: topbar.pathInput ? topbar.pathSuggestions : topbar.recentSuggestions
+        visible: topbar.editing && topbar.searchFocused && rows.length > 0
         onChosen: row => topbar.openRecent(row.path)
     }
 }

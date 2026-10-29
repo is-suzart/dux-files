@@ -21,6 +21,9 @@ Item {
 
     signal resultPicked(int page, var row)
     property var terminals: []
+    property var iconThemes: []
+    readonly property string iconThemeSetting: Paths.iconThemeSetting
+    readonly property string iconThemeEffective: Paths.iconThemeEffective
     property var fileManagerStatus: ({})
     property var portalStatus: ({})
     property bool portalBusy: false
@@ -52,6 +55,21 @@ Item {
         {
             label: I18n.tr("Custom", "font source button group option for app-chosen fonts"),
             value: "custom"
+        }
+    ]
+
+    readonly property var densityOptions: [
+        {
+            label: I18n.tr("Spacious", "interface density option with the most room between items"),
+            value: "spacious"
+        },
+        {
+            label: I18n.tr("Comfortable", "interface density option with the default spacing"),
+            value: "comfortable"
+        },
+        {
+            label: I18n.tr("Compact", "interface density option fitting the most items on screen"),
+            value: "compact"
         }
     ]
 
@@ -99,6 +117,17 @@ Item {
         }
     ]
 
+    readonly property var previewModeOptions: [
+        {
+            label: I18n.tr("Sidebar drawer", "preview drawer display mode option"),
+            value: "sidebar"
+        },
+        {
+            label: I18n.tr("Full page overlay", "preview full overlay display mode option"),
+            value: "full"
+        }
+    ]
+
     readonly property var dragOptions: [
         {
             label: I18n.tr("Move, copy across drives", "drag default action option"),
@@ -115,6 +144,17 @@ Item {
         {
             label: I18n.tr("Ask every time", "drag default action option"),
             value: "ask"
+        }
+    ]
+
+    readonly property var openerOptions: [
+        {
+            label: I18n.tr("Default application", "opener dropdown option launching the app registered for the file type"),
+            value: ""
+        },
+        {
+            label: "xdg-open",
+            value: "xdg-open"
         }
     ]
 
@@ -173,6 +213,28 @@ Item {
             if (response.error)
                 return;
             root.terminals = (response.result || {}).terminals || [];
+        });
+    }
+
+    function loadIconThemes() {
+        DuxFilesService.sendRequest("files.iconThemes", null, response => {
+            if (response.error)
+                return;
+            const result = response.result || {};
+            root.iconThemes = result.installed || [];
+            Paths.applyIconTheme(result);
+        });
+    }
+
+    function setIconTheme(name) {
+        DuxFilesService.sendRequest("files.setIconTheme", {
+            "name": name
+        }, response => {
+            if (response.error)
+                return;
+            const result = response.result || {};
+            root.iconThemes = result.installed || [];
+            Paths.applyIconTheme(result);
         });
     }
 
@@ -383,6 +445,7 @@ Item {
 
     Component.onCompleted: {
         loadTerminals();
+        loadIconThemes();
         loadFileManagerStatus();
         loadPortalStatus();
     }
@@ -470,7 +533,7 @@ Item {
     Rectangle {
         anchors.fill: pagesHost
         visible: root.searching
-        color: Theme.surface
+        color: "transparent"
 
         SettingsPage {
             StyledText {
@@ -555,6 +618,7 @@ Item {
         SettingsPage {
             SettingsCard {
                 title: I18n.tr("Window", "general settings section label")
+                iconName: "window"
 
                 SettingsButtonGroupRow {
                     text: I18n.tr("Close behavior", "close behavior setting label")
@@ -603,6 +667,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Open and save dialogs", "general settings section label for the portal file chooser")
+                iconName: "file_open"
 
                 SettingsToggleRow {
                     text: I18n.tr("Use Dux Files for open and save dialogs", "setting label for serving the desktop portal file chooser")
@@ -649,6 +714,14 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("View", "keyboard shortcut group")
+                iconName: "grid_view"
+
+                SettingsToggleRow {
+                    text: I18n.tr("Always show tabs", "setting keeping the tab bar visible with one tab")
+                    description: I18n.tr("Show the tab bar even when only one tab is open.", "always show tabs setting description")
+                    checked: SettingsData.alwaysShowTabs
+                    onToggled: checked => SettingsData.alwaysShowTabs = checked
+                }
 
                 OptionGroupRow {
                     text: I18n.tr("Default view", "setting label for the view a new window starts in")
@@ -741,6 +814,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Files", "keyboard shortcut group")
+                iconName: "folder"
 
                 SettingsButtonGroupRow {
                     text: I18n.tr("Open items with", "setting label choosing single or double click")
@@ -772,6 +846,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Keyboard", "general settings section label")
+                iconName: "keyboard"
 
                 SettingsToggleRow {
                     text: I18n.tr("Vim keys", "toggle label for vim style navigation")
@@ -811,6 +886,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Theme", "appearance settings section label")
+                iconName: "palette"
 
                 SettingsButtonGroupRow {
                     text: I18n.tr("Theme", "theme mode setting label")
@@ -935,10 +1011,26 @@ Item {
                         themePickerLoader.item.open();
                     }
                 }
+
+                OptionDropdownRow {
+                    text: I18n.tr("Icon theme", "icon theme setting label")
+                    keywords: I18n.tr("icons symbols folders badges appearance", "settings search keywords, space separated, add synonyms in your language")
+                    description: root.iconThemeEffective ? I18n.tr("Drawing with %1.", "icon theme setting description showing the theme in use").arg(root.iconThemeEffective) : I18n.tr("The theme the desktop asks for.", "icon theme setting description")
+                    optionList: [{
+                        label: I18n.tr("Automatic", "icon theme option following the desktop"),
+                        value: "auto"
+                    }].concat(root.iconThemes.map(name => ({
+                        label: name,
+                        value: name
+                    })))
+                    current: root.iconThemeSetting
+                    onPicked: value => root.setIconTheme(value)
+                }
             }
 
             SettingsCard {
                 title: I18n.tr("Shape", "appearance settings section label")
+                iconName: "rounded_corner"
 
                 SettingsSliderRow {
                     text: I18n.tr("Radius strength", "global component corner rounding")
@@ -954,7 +1046,21 @@ Item {
             }
 
             SettingsCard {
+                title: I18n.tr("Density", "appearance settings section label")
+                iconName: "density_medium"
+
+                OptionGroupRow {
+                    text: I18n.tr("Interface density", "interface density setting label")
+                    keywords: I18n.tr("density compact spacious comfortable spacing padding rows", "settings search keywords, space separated, add synonyms in your language")
+                    optionList: root.densityOptions
+                    current: SettingsData.density
+                    onPicked: value => SettingsData.density = value
+                }
+            }
+
+            SettingsCard {
                 title: I18n.tr("Typography", "appearance settings section label")
+                iconName: "text_fields"
 
                 OptionGroupRow {
                     text: I18n.tr("Font source", "font source setting label")
@@ -1024,6 +1130,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Windows", "appearance settings section label")
+                iconName: "window"
 
                 SettingsToggleRow {
                     text: I18n.tr("Title bars", "window title bars toggle label")
@@ -1032,10 +1139,39 @@ Item {
                     checked: SettingsData.windowTitleBars
                     onToggled: checked => SettingsData.windowTitleBars = checked
                 }
+
+                SettingsToggleRow {
+                    text: I18n.tr("Window header", "toggle label for the window title and buttons")
+                    keywords: I18n.tr("title bar header hide decorations", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("Hides the title and the window buttons, leaving a thin strip to drag the window.", "window header toggle description")
+                    checked: SettingsData.showTitleBar
+                    onToggled: checked => SettingsData.showTitleBar = checked
+                }
+
+                SettingsToggleRow {
+                    text: I18n.tr("Window transparency", "window transparency toggle label")
+                    keywords: I18n.tr("window transparency opacity blur", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("Enables transparency and blur across windows and menus.", "window transparency toggle description")
+                    checked: SettingsData.windowTransparencyEnabled
+                    onToggled: checked => SettingsData.windowTransparencyEnabled = checked
+                }
+
+                SettingsSliderRow {
+                    visible: SettingsData.windowTransparencyEnabled
+                    text: I18n.tr("Transparency level", "window transparency level slider label")
+                    keywords: I18n.tr("window transparency opacity slider", "settings search keywords, space separated, add synonyms in your language")
+                    minimum: 10
+                    maximum: 100
+                    step: 5
+                    unit: "%"
+                    value: Math.round((SettingsData.windowTransparencyCustom >= 0 ? SettingsData.windowTransparencyCustom : Theme.dmsFloatingTransparency) * 100)
+                    onSliderValueChanged: newValue => SettingsData.windowTransparencyCustom = newValue / 100
+                }
             }
 
             SettingsCard {
                 title: I18n.tr("Motion", "appearance settings section label")
+                iconName: "animation"
 
                 SettingsSliderRow {
                     text: I18n.tr("Duration", "animation duration slider label")
@@ -1076,6 +1212,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Focus ring", "appearance settings section label")
+                iconName: "filter_center_focus"
 
                 SettingsToggleRow {
                     text: I18n.tr("Focus ring", "focus ring toggle label")
@@ -1116,6 +1253,7 @@ Item {
         SettingsPage {
             SettingsCard {
                 title: I18n.tr("Open in terminal", "context menu entry opening a terminal")
+                iconName: "terminal"
 
                 OptionDropdownRow {
                     text: I18n.tr("Terminal", "setting label for the terminal emulator")
@@ -1128,7 +1266,22 @@ Item {
             }
 
             SettingsCard {
+                title: I18n.tr("Open files", "behaviour settings section label for the file opener")
+                iconName: "open_in_new"
+
+                OptionDropdownRow {
+                    text: I18n.tr("Open files with", "file opener setting label")
+                    keywords: I18n.tr("xdg-open handlr mimeo opener default application launch", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("xdg-open follows the handler on your PATH.", "file opener setting description")
+                    optionList: root.openerOptions
+                    current: SettingsData.opener
+                    onPicked: value => SettingsData.opener = value
+                }
+            }
+
+            SettingsCard {
                 title: I18n.tr("Drag and drop", "behaviour settings section label")
+                iconName: "drag_indicator"
 
                 OptionDropdownRow {
                     text: I18n.tr("Dropping without a modifier", "drag default action setting label")
@@ -1142,6 +1295,16 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Thumbnails", "capability row on the about page")
+                iconName: "image"
+
+                OptionDropdownRow {
+                    text: I18n.tr("Preview mode", "preview mode dropdown setting label")
+                    keywords: I18n.tr("preview mode spacebar sidebar full page overlay", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("Choose between a side drawer or full page overlay for Spacebar preview.", "preview mode setting description")
+                    optionList: root.previewModeOptions
+                    current: SettingsData.previewMode
+                    onPicked: value => SettingsData.previewMode = value
+                }
 
                 SettingsToggleRow {
                     text: I18n.tr("Show thumbnails", "thumbnails toggle label")
@@ -1176,6 +1339,7 @@ Item {
 
             SettingsCard {
                 title: I18n.tr("Search in Files", "placeholder in the search field")
+                iconName: "search"
 
                 SettingsToggleRow {
                     text: I18n.tr("Include hidden files", "search hidden files toggle label")
@@ -1224,6 +1388,73 @@ Item {
                     description: I18n.tr("Off only mounts.", "devices setting description")
                     checked: SettingsData.mountOnClick
                     onToggled: checked => SettingsData.mountOnClick = checked
+                }
+            }
+
+            SettingsCard {
+                title: I18n.tr("Games in the sidebar", "games settings section label")
+                iconName: "sports_esports"
+
+                SettingsToggleRow {
+                    text: I18n.tr("Show games", "games setting label")
+                    keywords: I18n.tr("steam heroic lutris proton games sidebar hide", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("Only launchers with an installed game are listed.", "games setting description")
+                    checked: SettingsData.showGamesSidebar
+                    onToggled: checked => SettingsData.showGamesSidebar = checked
+                }
+
+                SettingsToggleRow {
+                    text: I18n.tr("Steam", "games setting label for the steam group")
+                    keywords: I18n.tr("steam proton valve", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("Libraries and Proton prefixes.", "steam games setting description")
+                    enabled: SettingsData.showGamesSidebar
+                    checked: SettingsData.showSteamGames
+                    onToggled: checked => SettingsData.showSteamGames = checked
+                }
+
+                SettingsToggleRow {
+                    text: I18n.tr("Heroic", "games setting label for the heroic group")
+                    keywords: I18n.tr("heroic epic gog amazon", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("Games and prefixes Heroic installed.", "heroic games setting description")
+                    enabled: SettingsData.showGamesSidebar
+                    checked: SettingsData.showHeroicGames
+                    onToggled: checked => SettingsData.showHeroicGames = checked
+                }
+
+                SettingsToggleRow {
+                    text: I18n.tr("Lutris", "games setting label for the lutris group")
+                    keywords: I18n.tr("lutris wine prefix", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("Games and prefixes Lutris installed.", "lutris games setting description")
+                    enabled: SettingsData.showGamesSidebar
+                    checked: SettingsData.showLutrisGames
+                    onToggled: checked => SettingsData.showLutrisGames = checked
+                }
+
+                SettingsToggleRow {
+                    text: I18n.tr("Settings folders", "games setting label hiding the launcher config folders")
+                    keywords: I18n.tr("config folder launcher wine prefix", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("Each launcher's own configuration folder.", "games setting description for the settings folders")
+                    enabled: SettingsData.showGamesSidebar
+                    checked: SettingsData.showGameSettingsFolders
+                    onToggled: checked => SettingsData.showGameSettingsFolders = checked
+                }
+
+                SettingsToggleRow {
+                    text: I18n.tr("Prefixes", "games setting label hiding wine prefixes")
+                    keywords: I18n.tr("wine prefix proton compatdata", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("The Wine prefix of each game.", "games setting description for the wine prefixes")
+                    enabled: SettingsData.showGamesSidebar
+                    checked: SettingsData.showGamePrefixes
+                    onToggled: checked => SettingsData.showGamePrefixes = checked
+                }
+
+                SettingsToggleRow {
+                    text: I18n.tr("Games folders", "games setting label hiding the folders holding the games")
+                    keywords: I18n.tr("games library steamapps common", "settings search keywords, space separated, add synonyms in your language")
+                    description: I18n.tr("Where the launcher keeps the games.", "games setting description for the games folders")
+                    enabled: SettingsData.showGamesSidebar
+                    checked: SettingsData.showGameFolders
+                    onToggled: checked => SettingsData.showGameFolders = checked
                 }
             }
 

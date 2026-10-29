@@ -44,14 +44,20 @@ FloatingWindow {
     readonly property WindowActions actions: actions
     readonly property WindowSidebarHost sidebar: sidebarHost
     readonly property FilesTopbar topbar: topbar
+    readonly property PreviewOverlay preview: previewOverlay
     readonly property var activePane: splitView && activePaneIndex === 1 && secondPane ? secondPane : primaryPane
     readonly property string currentPath: activePane.path
     readonly property bool dialogOpen: dialogs.anyOpen
     readonly property bool textEditing: surface.focusItem instanceof TextInput || surface.focusItem instanceof TextEdit
     readonly property bool sidebarFocused: sidebarHost.focused
     readonly property bool tabRowFocused: ItemTree.isInside(surface.focusItem, tabRow)
-    readonly property bool shortcutsEnabled: !dialogOpen && !textEditing
+    readonly property bool shortcutsEnabled: !dialogOpen && !textEditing && !(preview?.open ?? false)
     readonly property bool lastActive: WindowService.lastActiveId === windowId
+    readonly property var previewTarget: {
+        const entries = selectedEntries();
+        return entries.length === 1 ? entries[0] : null;
+    }
+    readonly property bool previewExpandable: preview.supports(previewTarget)
 
     Component.onDestruction: FileOpsService.forget(opScope)
 
@@ -59,8 +65,15 @@ FloatingWindow {
     implicitWidth: SessionData.windowWidth
     implicitHeight: SessionData.windowHeight
     minimumSize: Qt.size(FilesMetrics.windowMinWidth, FilesMetrics.windowMinHeight)
-    color: Theme.surface
+    color: Theme.floatingWindowSurface
     visible: true
+
+    WindowBlur {
+        targetWindow: window
+        blurWidth: window.visible ? window.width : 0
+        blurHeight: window.visible ? window.height : 0
+        blurRadius: Theme.windowRadius
+    }
 
     onClosed: requestClose()
     onMaximizedChanged: SessionData.maximized = maximized
@@ -349,6 +362,7 @@ FloatingWindow {
 
         property int paneIndex: 0
 
+        showPathBar: false
         active: window.activePaneIndex === paneIndex
         showHidden: window.showHidden
         previewOpen: window.previewOpen
@@ -365,7 +379,11 @@ FloatingWindow {
         onRenameRequested: (target, name) => FileOpsService.rename(target, name, window.opScope)
         onSortRequested: key => pane.toggleSort(key)
         onColumnsMenuRequested: (pointX, pointY) => window.menus.showColumnsMenu(pointX, pointY)
-        onFocusRequested: window.activePaneIndex = paneIndex
+        onFocusRequested: {
+            window.activePaneIndex = paneIndex;
+            if (window.sidebarFocused)
+                pane.focusBody();
+        }
         onPreviewToggleRequested: window.actions.runAction("togglePreview")
         onServerDialogRequested: window.dialogs.askServer()
         onConnectFailed: (uri, result) => window.dialogs.showServerFailure(uri, result)
@@ -392,6 +410,10 @@ FloatingWindow {
 
         LayoutMirroring.enabled: I18n.isRtl
         LayoutMirroring.childrenInherit: true
+
+        FocusFallback {
+            onTriggered: window.activePane.focusBody()
+        }
 
         WheelHandler {
             property var forwardedScroller: null
@@ -455,11 +477,22 @@ FloatingWindow {
             anchors.right: parent.right
             controls: windowControls
             title: window.title
+            visible: SettingsData.showTitleBar
+            height: visible ? implicitHeight : 0
             onCloseRequested: window.requestClose()
 
             JobsButton {
                 anchors.verticalCenter: parent.verticalCenter
             }
+        }
+
+        MouseArea {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: Theme.spacingS
+            visible: !SettingsData.showTitleBar
+            onPressed: windowControls.tryStartMove()
         }
 
         Item {
@@ -471,8 +504,9 @@ FloatingWindow {
             anchors.right: parent.right
             anchors.topMargin: FilesMetrics.contentMarginV
             anchors.bottomMargin: FilesMetrics.contentMarginV
-            anchors.leftMargin: FilesMetrics.contentMarginH + sidebarHost.dockedWidth
+            anchors.leftMargin: FilesMetrics.contentMarginH
             anchors.rightMargin: FilesMetrics.contentMarginH
+            enabled: !window.preview.open
 
             TabRow {
                 id: tabRow
@@ -480,12 +514,18 @@ FloatingWindow {
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
-                visible: window.tabManager.tabs.length > 1
+                visible: SettingsData.alwaysShowTabs || window.tabManager.tabs.length > 1
                 height: visible ? implicitHeight : 0
                 tabs: window.tabManager.tabs.map(state => window.tabManager.tabLabel(state))
                 currentIndex: window.tabManager.currentTab
                 onTabSelected: index => window.tabManager.selectTab(index)
-                onTabClosed: index => window.tabManager.closeTab(index)
+                onTabClosed: index => {
+                    if (window.tabManager.tabs.length === 1) {
+                        window.requestClose();
+                        return;
+                    }
+                    window.tabManager.closeTab(index);
+                }
                 onTabAdded: window.tabManager.newTab("", false)
                 onTabDropHovered: index => window.tabManager.selectTab(index)
                 onTabDropped: (index, drop) => window.tabManager.dropOnTab(index, drop)
@@ -501,9 +541,9 @@ FloatingWindow {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 splitView: window.splitView
-                bookmarked: BookmarksService.has(window.currentPath)
                 backEnabled: window.activePane.canGoBack
                 forwardEnabled: window.activePane.canGoForward
+                upEnabled: window.activePane.canGoUp
                 sortKey: window.activePane.effectiveSortKey
                 sortDescending: window.activePane.effectiveSortDescending
                 resultsActive: window.activePane.resultsActive
@@ -512,6 +552,7 @@ FloatingWindow {
                 folderRemembered: window.activePane.folderRemembered
                 folderHasSettings: window.activePane.hasFolderSettings
                 previewOpen: window.previewOpen
+                previewExpandable: window.previewExpandable
                 trashActive: window.activePane.trashActive
                 recentActive: window.activePane.recentActive
                 filterText: window.activePane.nameFilter
@@ -522,6 +563,7 @@ FloatingWindow {
                     window.activePane.closeSearch();
                     window.activePane.focusBody();
                 }
+                onTabRequested: path => window.openPath(path, true)
                 onLocationRequested: location => {
                     window.openLocation(location, false);
                     window.activePane.focusBody();
@@ -535,15 +577,17 @@ FloatingWindow {
                 onSidebarToggled: sidebarHost.toggle()
                 onBackRequested: window.activePane.back()
                 onForwardRequested: window.activePane.forward()
+                onUpRequested: window.activePane.up()
                 onSplitToggled: window.toggleSplit()
-                onBookmarkToggled: window.actions.runAction("bookmark")
                 onSortKeySelected: key => window.activePane.sortBy(key)
                 onSortDirectionToggled: window.activePane.flipSort()
                 onCopyPathRequested: window.actions.copyText(window.currentPath)
                 onViewModeSelected: mode => window.activePane.setViewMode(mode)
+                onZoomRequested: step => window.activePane.body.zoomBy(step)
                 onUseForAllFoldersRequested: window.useForAllFolders()
                 onResetFolderRequested: window.activePane.resetFolder()
                 onPreviewToggled: window.actions.runAction("togglePreview")
+                onPreviewExpandRequested: window.actions.runAction("previewExpand")
                 onReloadRequested: window.actions.runAction("reload")
                 onTerminalRequested: window.actions.runAction("openTerminal")
                 onPropertiesRequested: window.actions.runAction("properties")
@@ -558,6 +602,7 @@ FloatingWindow {
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
                 anchors.right: parent.right
+                anchors.leftMargin: sidebarHost.dockedWidth
 
                 readonly property real usableWidth: width - (window.splitView ? FilesMetrics.splitterWidth : 0)
 
@@ -607,12 +652,14 @@ FloatingWindow {
         WindowSidebarHost {
             id: sidebarHost
 
-            anchors.top: header.bottom
+            anchors.top: content.top
+            anchors.topMargin: topbar.y + topbar.height + FilesMetrics.contentSpacing
             anchors.bottom: parent.bottom
             anchors.left: parent.left
             anchors.right: parent.right
             mainWindow: window
             focusItem: surface.focusItem
+            enabled: !window.preview.open
         }
 
         DragController {
@@ -631,12 +678,19 @@ FloatingWindow {
 
             TapHandler {
                 acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                enabled: primaryPane.editingPath || (window.secondPane?.editingPath ?? false) || topbar.searchFocused
+                enabled: primaryPane.editingPath || (window.secondPane?.editingPath ?? false)
                 onPressedChanged: {
                     if (pressed)
                         window.dismissEditors(point.position);
                 }
             }
+        }
+
+        PreviewOverlay {
+            id: previewOverlay
+
+            anchors.fill: parent
+            onClosed: window.activePane.focusBody()
         }
     }
 

@@ -11,12 +11,23 @@ FilePlaceSection {
 
     property string busyId: ""
     property string currentPath: ""
-    readonly property var shownDevices: DevicesService.devices.filter(device => device.mounted || !device.hidden || SettingsData.showSystemPartitions)
+    readonly property bool sectionVisible: !SettingsData.hiddenSidebarSections.includes("devices") || SettingsData.showHiddenSidebarSections
+
+
+    readonly property var shownDevices: DevicesService.devices.filter(device => {
+        if (!SettingsData.showHiddenSidebarPlaces) {
+            const key = device.id || device.mountPoint;
+            if (SettingsData.hiddenSidebarPlaces.includes(key) || SettingsData.hiddenSidebarPlaces.includes(device.id) || SettingsData.hiddenSidebarPlaces.includes(device.mountPoint))
+                return false;
+        }
+        return device.mounted || !device.hidden || SettingsData.showSystemPartitions;
+    })
 
     signal navigateRequested(string path)
     signal tabRequested(string path)
     signal unlockRequested(var device)
     signal dropRequested(string path, var drop)
+    signal menuRequested(var device, real pointX, real pointY)
 
     function activate(device) {
         if (busyId !== "")
@@ -90,6 +101,7 @@ FilePlaceSection {
     }
 
     title: I18n.tr("Devices", "sidebar section listing drives and volumes")
+    iconName: "hard_drive"
     emptyText: {
         if (DevicesService.available)
             return "";
@@ -100,7 +112,15 @@ FilePlaceSection {
         return I18n.tr("Drives are unavailable because udisks2 is not running", "sidebar explanation when the device service is missing");
     }
     showEmpty: !DevicesService.available
-    visible: shownDevices.length > 0 || NetworkService.portables.length > 0 || NetworkService.deviceMounts.length > 0 || (showEmpty && emptyText !== "")
+    visible: sectionVisible && (shownDevices.length > 0 || NetworkService.portables.length > 0 || NetworkService.deviceMounts.length > 0 || (showEmpty && emptyText !== ""))
+    isHiddenSection: SettingsData.hiddenSidebarSections.includes("devices")
+    onHeaderClicked: {
+        if (SettingsData.hiddenSidebarSections.includes("devices"))
+            SettingsData.hiddenSidebarSections = SettingsData.hiddenSidebarSections.filter(s => s !== "devices");
+        else
+            SettingsData.hiddenSidebarSections = SettingsData.hiddenSidebarSections.concat(["devices"]);
+    }
+
 
     function activateOrMount(device) {
         if (busyId !== "")
@@ -118,6 +138,14 @@ FilePlaceSection {
 
         FilePlaceRow {
             required property var modelData
+            required property int index
+
+            isFirstInGroup: index === 0
+            isLastInGroup: index === section.shownDevices.length - 1
+            isHiddenPlace: {
+                const key = modelData.id || modelData.mountPoint;
+                return SettingsData.hiddenSidebarPlaces.includes(key) || SettingsData.hiddenSidebarPlaces.includes(modelData.id) || SettingsData.hiddenSidebarPlaces.includes(modelData.mountPoint);
+            }
 
             label: modelData.mounted && modelData.mountPoint ? modelData.mountPoint : modelData.name || modelData.label || I18n.tr("File system", "storage volume containing the root directory")
             subtitle: modelData.device || ""
@@ -142,6 +170,13 @@ FilePlaceSection {
             }
             onDropped: drop => section.dropRequested(modelData.mountPoint, drop)
             onSpringLoaded: section.navigateRequested(modelData.mountPoint)
+            TapHandler {
+                acceptedButtons: Qt.RightButton
+                onTapped: point => {
+                    const mapped = point.position;
+                    section.menuRequested(modelData, mapped.x, mapped.y);
+                }
+            }
             onActionTriggered: {
                 if (modelData.system || modelData.protected)
                     return;

@@ -35,13 +35,14 @@ Singleton {
     readonly property int closedTabHistory: 10
     readonly property int defaultGridZoom: FileBrowserMetrics.defaultGridZoom
     readonly property int defaultListZoom: FileBrowserMetrics.defaultListZoom
+    readonly property int defaultColumnZoom: FileBrowserMetrics.defaultColumnZoom
 
     function defaultZoom(viewMode) {
         return FileBrowserMetrics.defaultZoom(viewMode);
     }
     readonly property real tabMinWidth: Theme.tabMinWidth
     readonly property real tabMaxWidth: Theme.sidebarWidth
-    readonly property real tabSpacing: Theme.spacingXXS
+    readonly property real tabSpacing: Theme.spacingS
     readonly property int tabHoverDelay: FileBrowserMetrics.springLoadDelay
 
     readonly property real dragGhostSize: FileBrowserMetrics.gridIconSizes[0]

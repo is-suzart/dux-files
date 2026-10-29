@@ -20,6 +20,8 @@ DFlickable {
     signal bookmarkRenameRequested(string path)
     signal trashMenuRequested(real pointX, real pointY)
     signal recentMenuRequested(real pointX, real pointY)
+    signal deviceMenuRequested(var device, real pointX, real pointY)
+    signal sidebarMenuRequested(real pointX, real pointY)
     signal leaveRequested
 
     function rows() {
@@ -110,6 +112,10 @@ DFlickable {
             focusEdge(true);
             break;
         case Qt.Key_Delete:
+            if (bookmarkPath(row) !== "") {
+                BookmarksService.remove(row.dropPath);
+                break;
+            }
             if (!row || row.actionIcon === "" || row.busy)
                 return;
             row.actionTriggered();
@@ -175,12 +181,17 @@ DFlickable {
         }
 
         DevicesSection {
+            id: devicesSection
             width: sections.width
             currentPath: sidebar.currentPath
             onNavigateRequested: path => sidebar.navigateRequested(path)
             onTabRequested: path => sidebar.tabRequested(path)
             onUnlockRequested: device => sidebar.unlockRequested(device)
             onDropRequested: (path, drop) => sidebar.dropRequested(path, drop)
+            onMenuRequested: (device, pointX, pointY) => {
+                const point = devicesSection.mapToItem(sidebar, pointX, pointY);
+                sidebar.deviceMenuRequested(device, point.x, point.y);
+            }
         }
 
         NetworkSection {
@@ -189,6 +200,28 @@ DFlickable {
             onTabRequested: path => sidebar.tabRequested(path)
             onConnectRequested: sidebar.connectRequested()
             onDropRequested: (path, drop) => sidebar.dropRequested(path, drop)
+        }
+
+        GamesSection {
+            width: sections.width
+            currentPath: sidebar.currentPath
+            onNavigateRequested: path => sidebar.navigateRequested(path)
+            onTabRequested: path => sidebar.tabRequested(path)
+            onDropRequested: (path, drop) => sidebar.dropRequested(path, drop)
+        }
+    }
+
+    TapHandler {
+        acceptedButtons: Qt.RightButton
+        onTapped: point => {
+            const allRows = sidebar.rows();
+            for (let i = 0; i < allRows.length; i++) {
+                const r = allRows[i];
+                const pt = r.mapFromItem(sidebar, point.position.x, point.position.y);
+                if (r.contains(pt))
+                    return;
+            }
+            sidebar.sidebarMenuRequested(point.position.x, point.position.y);
         }
     }
 }

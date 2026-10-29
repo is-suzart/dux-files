@@ -47,6 +47,7 @@ QtObject {
         case "extract":
         case "extractTo":
         case "properties":
+        case "customizeFolder":
         case "copyPath":
         case "bookmark":
         case "bookmarkSelected":
@@ -186,10 +187,10 @@ QtObject {
             activePane.forward();
             return;
         case "editPath":
-            activePane.editPath();
+            mainWindow.topbar.focusLocation();
             return;
         case "jump":
-            activePane.startJump();
+            mainWindow.topbar.focusSearch();
             return;
         case "search":
             mainWindow.topbar.focusSearch();
@@ -240,6 +241,9 @@ QtObject {
             return;
         case "togglePreview":
             togglePreview();
+            return;
+        case "previewExpand":
+            mainWindow.preview.present(mainWindow.previewTarget);
             return;
         case "zoomIn":
             activePane.body.zoomBy(1);
@@ -309,6 +313,9 @@ QtObject {
             return;
         case "properties":
             showProperties();
+            return;
+        case "customizeFolder":
+            mainWindow.dialogs.showAppearance(mainWindow.selectedEntries());
             return;
         case "copyPath":
             copyText((mainWindow.selectedPaths().length > 0 ? mainWindow.selectedPaths() : [currentPath]).join("\n"));
@@ -449,6 +456,13 @@ QtObject {
     }
 
     function togglePreview() {
+        if (SettingsData.previewMode === "full") {
+            if (mainWindow.preview.open)
+                mainWindow.preview.dismiss();
+            else if (mainWindow.previewTarget)
+                mainWindow.preview.present(mainWindow.previewTarget);
+            return;
+        }
         const open = !mainWindow.previewOpen;
         mainWindow.previewOpen = open;
         SessionData.remember({

@@ -100,6 +100,8 @@ T.Control {
     Rectangle {
         anchors.fill: parent
         color: root.flashing ? Theme.blend(root.rowColor, Theme.primary, SettingsMetrics.highlightBlend) : root.rowColor
+        border.width: Theme.layerOutlineWidth
+        border.color: Theme.outlineMedium
         topLeftRadius: root.topRadius
         topRightRadius: root.topRadius
         bottomLeftRadius: root.bottomRadius

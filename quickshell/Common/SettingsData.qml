@@ -53,6 +53,7 @@ Singleton {
     property alias presetTheme: adapter.presetTheme
     property alias customThemeFile: adapter.customThemeFile
     property alias radiusStrength: adapter.radiusStrength
+    property alias density: adapter.density
     property alias animationDuration: adapter.animationDuration
     property alias reduceMotion: adapter.reduceMotion
     property alias springBounce: adapter.springBounce
@@ -67,13 +68,16 @@ Singleton {
     property alias focusRingWidth: adapter.focusRingWidth
     property alias focusRingColor: adapter.focusRingColor
     property alias windowTitleBars: adapter.windowTitleBars
+    property alias showTitleBar: adapter.showTitleBar
     property alias language: adapter.language
     property alias terminal: adapter.terminal
+    property alias opener: adapter.opener
     property alias closeBehavior: adapter.closeBehavior
     property alias openLocationIn: adapter.openLocationIn
     property alias extractOnOpen: adapter.extractOnOpen
     property alias registerFileManager: adapter.registerFileManager
     property alias recentFiles: adapter.recentFiles
+    property alias alwaysShowTabs: adapter.alwaysShowTabs
     property alias sidebarCollapsed: adapter.sidebarCollapsed
     property alias defaultView: adapter.defaultView
     property alias defaultSort: adapter.defaultSort
@@ -90,12 +94,26 @@ Singleton {
     property alias thumbnailSizeLimitMb: adapter.thumbnailSizeLimitMb
     property alias networkThumbnails: adapter.networkThumbnails
     property alias showSystemPartitions: adapter.showSystemPartitions
+    property alias showGamesSidebar: adapter.showGamesSidebar
+    property alias showSteamGames: adapter.showSteamGames
+    property alias showHeroicGames: adapter.showHeroicGames
+    property alias showLutrisGames: adapter.showLutrisGames
+    property alias showGameSettingsFolders: adapter.showGameSettingsFolders
+    property alias showGamePrefixes: adapter.showGamePrefixes
+    property alias showGameFolders: adapter.showGameFolders
     property alias mountOnClick: adapter.mountOnClick
     property alias searchHidden: adapter.searchHidden
     property alias searchExcludes: adapter.searchExcludes
     property alias vimKeys: adapter.vimKeys
     property alias listTyping: adapter.listTyping
     property alias gtkBookmarksOffered: adapter.gtkBookmarksOffered
+    property alias windowTransparencyEnabled: adapter.windowTransparencyEnabled
+    property alias windowTransparencyCustom: adapter.windowTransparencyCustom
+    property alias hiddenSidebarPlaces: adapter.hiddenSidebarPlaces
+    property alias hiddenSidebarSections: adapter.hiddenSidebarSections
+    property alias showHiddenSidebarPlaces: adapter.showHiddenSidebarPlaces
+    property alias showHiddenSidebarSections: adapter.showHiddenSidebarSections
+    property alias previewMode: adapter.previewMode
 
     function flush() {
         if (!writeDebounce.running)
@@ -158,6 +176,7 @@ Singleton {
             property string presetTheme: "purple"
             property string customThemeFile: ""
             property int radiusStrength: 50
+            property string density: "comfortable"
             property int animationDuration: 250
             property bool reduceMotion: false
             property int springBounce: 1
@@ -172,13 +191,16 @@ Singleton {
             property real focusRingWidth: 1.5
             property string focusRingColor: "primary"
             property bool windowTitleBars: true
+            property bool showTitleBar: true
             property string language: ""
             property string terminal: ""
+            property string opener: ""
             property string closeBehavior: "quit"
             property string openLocationIn: "current"
             property bool extractOnOpen: true
             property bool registerFileManager: true
             property bool recentFiles: true
+            property bool alwaysShowTabs: true
             property bool sidebarCollapsed: false
             property string defaultView: "list"
             property string defaultSort: "name"
@@ -195,12 +217,26 @@ Singleton {
             property int thumbnailSizeLimitMb: 64
             property bool networkThumbnails: false
             property bool showSystemPartitions: false
+            property bool showGamesSidebar: true
+            property bool showSteamGames: true
+            property bool showHeroicGames: true
+            property bool showLutrisGames: true
+            property bool showGameSettingsFolders: true
+            property bool showGamePrefixes: true
+            property bool showGameFolders: true
             property bool mountOnClick: true
             property bool searchHidden: false
             property var searchExcludes: []
             property bool vimKeys: false
             property string listTyping: "jump"
             property bool gtkBookmarksOffered: false
+            property bool windowTransparencyEnabled: false
+            property real windowTransparencyCustom: -1
+            property var hiddenSidebarPlaces: []
+            property var hiddenSidebarSections: []
+            property bool showHiddenSidebarPlaces: false
+            property bool showHiddenSidebarSections: false
+            property string previewMode: "sidebar"
         }
     }
 }

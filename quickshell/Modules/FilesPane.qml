@@ -10,11 +10,13 @@ FocusScope {
     id: pane
 
     property bool active: true
+    property bool showPathBar: true
     property bool showActiveOutline: false
     property bool showHidden: false
     property string sortKey: SessionData.lastUsed("sortKey", SettingsData.defaultSort)
     property bool sortDescending: SessionData.lastUsed("sortDescending", SettingsData.defaultSortDescending)
     property string viewMode: SessionData.lastUsed("viewMode", SettingsData.defaultView)
+    property bool folderViews: true
     property bool hasFolderSettings: false
     property var restoringView: null
     property bool previewOpen: true
@@ -32,6 +34,7 @@ FocusScope {
     readonly property alias path: browser.path
     readonly property alias canGoBack: browser.canGoBack
     readonly property alias canGoForward: browser.canGoForward
+    readonly property alias canGoUp: browser.canGoUp
     readonly property alias editingPath: browser.editingPath
     readonly property alias searchModel: searchModel
     readonly property bool resultsActive: searchModel.active
@@ -83,6 +86,8 @@ FocusScope {
     }
 
     function resolveFolder(target, heldView) {
+        if (!folderViews)
+            return;
         const entry = SettingsData.rememberFolderViews ? FolderViews.lookup(target) : null;
         const values = FolderViews.resolve(entry, SessionData.browsing, {
             "sortKey": SettingsData.defaultSort,
@@ -355,6 +360,11 @@ FocusScope {
             SessionData.gridZoom = level;
             return;
         }
+        if (mode === "columns") {
+            SessionData.columnZoom = level;
+            SessionData.columnPaneWidth = 0;
+            return;
+        }
         SessionData.listZoom = level;
     }
 
@@ -495,6 +505,8 @@ FocusScope {
         viewMode: pane.viewMode
         gridZoom: SessionData.gridZoom
         listZoom: SessionData.listZoom
+        columnZoom: SessionData.columnZoom
+        columnPaneWidth: SessionData.columnPaneWidth
         listColumns: SessionData.listColumns
         columnWidths: SessionData.columnWidths
         dragEnabled: pane.dragEnabled
@@ -519,8 +531,9 @@ FocusScope {
         networkThumbnails: SettingsData.networkThumbnails
         folderJump: FolderHistory
         unlistedPaths: [TrashService.filesPath, RecentService.path]
-        header: pane.filtering ? filterHeader : null
-        pathBarTrailing: paneStatus
+        header: pane.filtering ? filterHeader : statusHeader
+        showPathBar: pane.showPathBar
+        pathBarTrailing: null
         emptyText: {
             if (pane.virtualActive)
                 return "";
@@ -547,6 +560,7 @@ FocusScope {
         onSortRequested: key => pane.sortRequested(key)
         onZoomRequested: (mode, level) => pane.setZoom(mode, level)
         onColumnResizeRequested: (id, width) => pane.setColumnWidth(id, width)
+        onColumnPaneResizeRequested: width => SessionData.columnPaneWidth = width
         onPreviewToggleRequested: pane.previewToggleRequested()
         onPreviewResized: width => pane.setPreviewWidth(width)
         onFocusRequested: pane.focusRequested()
@@ -687,6 +701,27 @@ FocusScope {
             hidden: pane.showHidden ? 0 : browser.directory.hiddenCount
             compact: pane.width < Theme.smallBreakpoint
             showClipboard: pane.active
+        }
+    }
+
+    Component {
+        id: statusHeader
+
+        Item {
+            width: browser.body.width
+            implicitHeight: headerStatus.implicitHeight + Theme.spacingS
+            visible: !pane.virtualActive && !pane.filtering && browser.directory.total > 0
+
+            PaneStatus {
+                id: headerStatus
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.spacingM
+                anchors.verticalCenter: parent.verticalCenter
+                total: browser.directory.total
+                hidden: pane.showHidden ? 0 : browser.directory.hiddenCount
+                compact: pane.width < Theme.smallBreakpoint
+                showClipboard: false
+            }
         }
     }
 

@@ -18,7 +18,21 @@ FilePlaceSection {
     signal trashMenuRequested(real pointX, real pointY)
     signal recentMenuRequested(real pointX, real pointY)
 
-    readonly property var bookmarks: BookmarksService.entries.filter(entry => entry.path !== RecentService.path || RecentService.shown)
+    readonly property bool sectionVisible: !SettingsData.hiddenSidebarSections.includes("places") || SettingsData.showHiddenSidebarSections
+    visible: sectionVisible && bookmarks.length > 0
+    isHiddenSection: SettingsData.hiddenSidebarSections.includes("places")
+    onHeaderClicked: {
+        if (SettingsData.hiddenSidebarSections.includes("places"))
+            SettingsData.hiddenSidebarSections = SettingsData.hiddenSidebarSections.filter(s => s !== "places");
+        else
+            SettingsData.hiddenSidebarSections = SettingsData.hiddenSidebarSections.concat(["places"]);
+    }
+
+    readonly property var bookmarks: BookmarksService.entries.filter(entry => {
+        if (!SettingsData.showHiddenSidebarPlaces && SettingsData.hiddenSidebarPlaces.includes(entry.path))
+            return false;
+        return entry.path !== RecentService.path || RecentService.shown;
+    })
 
     function kindOf(path) {
         switch (path) {
@@ -61,13 +75,14 @@ FilePlaceSection {
     }
 
     title: I18n.tr("Places", "sidebar section listing the user's places and saved folders")
+    iconName: "bookmark"
 
     DReorderList {
         id: reorderList
 
         width: section.width
         model: section.bookmarks
-        spacing: Theme.spacingXXS
+        spacing: FileBrowserMetrics.sidebarRowGap
         onReordered: indices => BookmarksService.reorder(section.fullOrder(indices.map(index => section.bookmarks[index].path)))
 
         delegate: FilePlaceRow {
@@ -84,9 +99,13 @@ FilePlaceSection {
             readonly property bool dragging: reorderList.draggingIndex === index
 
             width: reorderList.width
+            isFirstInGroup: index === 0
+            isLastInGroup: index === section.bookmarks.length - 1
+            isHiddenPlace: SettingsData.hiddenSidebarPlaces.includes(modelData.path)
             label: recent ? I18n.tr("Recent", "recent files view header and sidebar entry") : trash ? I18n.tr("Trash", "trash view header and sidebar entry") : section.labelFor(modelData)
             glyph: recent ? "history" : ""
             iconName: recent ? "" : trash ? (TrashService.count > 0 ? "user-trash-full" : "user-trash") : section.iconFor(modelData)
+            path: recent || trash ? "" : target
             tooltipText: {
                 if (recent)
                     return RecentService.count < 0 ? "" : RecentService.count > 0 ? FileFormat.count(RecentService.count) : I18n.tr("No recent files", "recent files view placeholder when nothing was opened yet");
@@ -95,15 +114,12 @@ FilePlaceSection {
                 return "";
             }
             selected: target === section.currentPath
-            actionIcon: saved ? "bookmark_remove" : ""
-            actionTooltip: I18n.tr("Remove bookmark", "tooltip on the bookmark button")
             dropPath: recent ? "" : target
             springLoad: saved
             z: dragging ? 1 : 0
             opacity: dragging ? Theme.pendingOpacity : 1
             onClicked: section.navigateRequested(target)
             onMiddleClicked: section.tabRequested(target)
-            onActionTriggered: BookmarksService.remove(modelData.path)
             onDropped: drop => section.dropRequested(target, drop)
             onSpringLoaded: section.navigateRequested(target)
 
